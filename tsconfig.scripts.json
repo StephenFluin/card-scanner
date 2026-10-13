@@ -1,0 +1,9 @@
+/* Type-checks the Node scripts (catalog build, scan download, evaluation). Run with: npx tsc -p tsconfig.scripts.json */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["scripts/**/*.ts"]
+}

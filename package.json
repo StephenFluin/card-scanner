@@ -6,7 +6,11 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "serve:ssr:card-scanner": "node dist/card-scanner/server/server.mjs"
+    "serve:ssr:card-scanner": "node dist/card-scanner/server/server.mjs",
+    "catalog": "tsx scripts/build-catalog.ts",
+    "scans": "tsx scripts/download-scans.ts",
+    "eval": "tsx scripts/eval.ts",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json"
   },
   "private": true,
   "packageManager": "npm@11.19.0",

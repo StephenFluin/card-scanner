@@ -1,0 +1,255 @@
+<section class="panel" aria-labelledby="debug-tools">
+  <h2 id="debug-tools">Debug tools</h2>
+  <div class="row">
+    <button type="button" (click)="scan.requestSnapshot()">Take snapshot</button>
+    <button type="button" (click)="downloadBundle()">Download debug bundle</button>
+    <button type="button" (click)="recordClip()" [disabled]="recording() || !camera.stream()">
+      {{ recording() ? 'Recording…' : 'Record 5s clip' }}
+    </button>
+    <label class="btn">
+      Analyze photo
+      <input class="visually-hidden" type="file" accept="image/*" (change)="onFile($event, 'photo')" />
+    </label>
+    <label class="btn">
+      Analyze video
+      <input class="visually-hidden" type="file" accept="video/*" (change)="onFile($event, 'video')" />
+    </label>
+    <button type="button" (click)="sourceRequest.emit({ kind: 'camera' })">Use camera</button>
+  </div>
+  <p class="muted">
+    Source: {{ scan.sourceLabel() || 'none' }}. A snapshot keeps the next full frame; the bundle includes it plus the
+    frame history and log.
+    @if (scan.snapshot(); as s) {
+      <span class="badge ok">snapshot of frame #{{ s.result.id }} ready</span>
+    }
+  </p>
+  <div class="row">
+    <label>
+      Guide size
+      <input
+        type="range"
+        min="0.55"
+        max="0.95"
+        step="0.01"
+        [value]="scan.settings().guideFill"
+        (input)="setGuideFill($any($event.target).value)"
+      />
+      {{ scan.settings().guideFill | number: '1.2-2' }}
+    </label>
+    <label>
+      <input
+        type="checkbox"
+        [checked]="scan.settings().alwaysReadNames"
+        (change)="setAlwaysReadNames($any($event.target).checked)"
+      />
+      Always OCR names
+    </label>
+    <label>
+      Console level
+      <select [value]="logger.consoleLevel()" (change)="setConsoleLevel($any($event.target).value)">
+        <option value="debug">debug</option>
+        <option value="info">info</option>
+        <option value="warn">warn</option>
+      </select>
+    </label>
+  </div>
+</section>
+
+<div class="grid">
+  <section class="panel" aria-labelledby="debug-frame">
+    <h3 id="debug-frame">Frame</h3>
+    @if (result(); as r) {
+      <dl>
+        <dt>frame</dt>
+        <dd>#{{ r.id }} · {{ r.width }}×{{ r.height }} · {{ scan.fps() | number: '1.1-1' }} fps</dd>
+        <dt>timings</dt>
+        <dd>
+          grab {{ r.timings.capture | number: '1.0-0' }} · detect {{ r.timings.detect | number: '1.0-0' }} · warp
+          {{ r.timings.warp | number: '1.0-0' }} · model {{ r.timings.model | number: '1.0-0' }} · total
+          {{ r.timings.total | number: '1.0-0' }} ms
+        </dd>
+        <dt>detection</dt>
+        <dd>
+          @if (r.scores; as s) {
+            {{ r.accepted ? 'accepted' : 'rejected' }} score {{ s.total | number: '1.2-2' }} (support
+            {{ s.support | number: '1.2-2' }}, aspect {{ s.aspect | number: '1.2-2' }} [{{
+              s.aspectRatio | number: '1.3-3'
+            }}], border {{ s.border | number: '1.2-2' }} [σ {{ s.borderStd | number: '1.0-0' }}])
+          } @else {
+            no quad (some side had no edge line)
+          }
+        </dd>
+        <dt>focus</dt>
+        <dd>{{ r.sharpness | number: '1.0-0' }} (Laplacian variance of the info line)</dd>
+        <dt>orientation</dt>
+        <dd>{{ r.flipped ? 'upside down (flipped)' : 'upright' }}</dd>
+      </dl>
+      <div class="row">
+        <canvas [appRgba]="r.debug?.preview" width="126" height="176" aria-label="Rectified card"></canvas>
+      </div>
+    } @else {
+      <p class="muted">No frames processed yet.</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="debug-read">
+    <h3 id="debug-read">Info line read</h3>
+    <canvas class="info-crop pixelated" [appRgba]="result()?.debug?.infoCrop" aria-label="Info line crop given to the model"></canvas>
+    @if (info(); as i) {
+      <p>
+        @for (ch of chars(); track $index) {
+          <span class="char" [style.color]="charColor(ch.p)" [title]="(ch.p * 100 | number: '1.0-0') + '%'">{{ ch.c }}</span>
+        }
+      </p>
+      <dl>
+        <dt>parsed</dt>
+        <dd>{{ i.parsed ? i.parsed.setCode + ' · ' + i.parsed.number + (i.parsed.total ? ' / ' + i.parsed.total : ' (no total)') : 'no' }}</dd>
+        <dt>confidence</dt>
+        <dd>{{ i.confidence | number: '1.2-2' }} (weakest character) · {{ i.ms | number: '1.0-0' }} ms</dd>
+      </dl>
+    } @else {
+      <p class="muted">Nothing read (no accepted card this frame).</p>
+    }
+    <h3>Name OCR (Tesseract)</h3>
+    @if (scan.lastName(); as n) {
+      <canvas class="pixelated" [appRgba]="namePrepared()" aria-label="Name crop given to Tesseract"></canvas>
+      <dl>
+        <dt>name</dt>
+        <dd>{{ n.value ?? '—' }} ({{ n.confidence | number: '1.0-0' }}) · {{ n.ms | number: '1.0-0' }} ms</dd>
+        @for (a of n.attempts; track $index) {
+          <dt>{{ a.variant }}</dt>
+          <dd>{{ a.text || '∅' }} → {{ a.value ?? '—' }} ({{ a.confidence | number: '1.0-0' }})</dd>
+        }
+      </dl>
+    } @else {
+      <p class="muted">Not run yet (only for cards not in the catalog, unless "Always OCR names" is on).</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="debug-fusion">
+    <h3 id="debug-fusion">Multi-frame decision</h3>
+    @if (scan.fusion(); as f) {
+      <dl>
+        <dt>status</dt>
+        <dd>{{ f.status }} — {{ f.reason }}</dd>
+        <dt>last vote</dt>
+        <dd>{{ f.lastVote }}</dd>
+        @if (f.best; as b) {
+          <dt>best</dt>
+          <dd>{{ b.identity.key }} {{ b.identity.name ?? '' }} ({{ b.known ? 'in catalog' : 'not in catalog' }})</dd>
+          @for (note of b.resolution?.notes ?? []; track $index) {
+            <dt>note</dt>
+            <dd>{{ note }}</dd>
+          }
+        }
+      </dl>
+      <table class="debug-table">
+        <caption class="visually-hidden">Votes per candidate card</caption>
+        <thead>
+          <tr><th scope="col">candidate</th><th scope="col">votes</th><th scope="col">catalog</th></tr>
+        </thead>
+        <tbody>
+          @for (t of f.tally; track t.key) {
+            <tr><td>{{ t.key }}</td><td>{{ t.votes }}</td><td>{{ t.known ? 'yes' : 'no' }}</td></tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="muted">No votes yet.</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="debug-env">
+    <h3 id="debug-env">Environment</h3>
+    <dl>
+      @if (camera.info(); as c) {
+        <dt>camera</dt>
+        <dd>{{ c.label || 'unnamed' }}</dd>
+        <dt>stream</dt>
+        <dd>{{ c.width }}×{{ c.height }} @ {{ c.frameRate ?? '?' }} fps, facing {{ c.facingMode ?? '?' }}</dd>
+        <dt>focus</dt>
+        <dd>{{ c.focusMode ?? 'not reported' }}</dd>
+        <dt>torch / zoom</dt>
+        <dd>{{ c.torch ? 'yes' : 'no' }} / {{ c.zoom ? c.zoom.min + '–' + c.zoom.max : 'no' }}</dd>
+      }
+      <dt>model</dt>
+      <dd>
+        @if (scan.model(); as m) {
+          {{ m.name }} · {{ m.params / 1000 | number: '1.0-0' }}k params · {{ m.createdAt }} {{ m.note }}
+        } @else {
+          loading…
+        }
+      </dd>
+      <dt>catalog</dt>
+      <dd>
+        @if (catalogInfo(); as c) {
+          {{ c.sets }} sets · built {{ c.generatedAt }}
+        } @else {
+          not loaded
+        }
+      </dd>
+    </dl>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="debug-history">
+  <h3 id="debug-history">Recent frames</h3>
+  <div class="scroll">
+    <table class="debug-table">
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">card</th>
+          <th scope="col">score</th>
+          <th scope="col">read</th>
+          <th scope="col">conf</th>
+          <th scope="col">decision</th>
+          <th scope="col">ms</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (h of scan.history(); track h.id) {
+          <tr>
+            <td>{{ h.id }}</td>
+            <td>{{ h.accepted ? 'yes' : 'no' }}</td>
+            <td>{{ h.score ?? '' }}</td>
+            <td>{{ h.read ?? '' }}{{ h.flipped ? ' ↻' : '' }}</td>
+            <td>{{ h.confidence ?? '' }}</td>
+            <td>{{ h.vote }}</td>
+            <td>{{ h.timings.total }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="debug-log">
+  <h3 id="debug-log">Log</h3>
+  <div class="row">
+    <label>
+      Level
+      <select [value]="logLevel()" (change)="logLevel.set($any($event.target).value)">
+        <option value="debug">debug</option>
+        <option value="info">info</option>
+        <option value="warn">warn</option>
+        <option value="error">error</option>
+      </select>
+    </label>
+    <label>
+      Category
+      <select [value]="logCategory()" (change)="logCategory.set($any($event.target).value)">
+        <option value="all">all</option>
+        @for (c of categories; track c) {
+          <option [value]="c">{{ c }}</option>
+        }
+      </select>
+    </label>
+    <button type="button" (click)="logger.clear()">Clear</button>
+  </div>
+  <ul class="log-list">
+    @for (e of logs(); track $index) {
+      <li [class]="'log-' + e.level">{{ e.t }}ms {{ e.level }} [{{ e.category }}] {{ e.message }}</li>
+    }
+  </ul>
+</section>

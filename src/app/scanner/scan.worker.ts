@@ -1,0 +1,115 @@
+/// <reference lib="webworker" />
+/**
+ * Runs the per-frame vision pipeline off the main thread:
+ * find card edges -> rectify -> read the info line with our model.
+ */
+import { rotateQuad180 } from '../vision/homography';
+import type { RGBAImage } from '../vision/image';
+import { LineModel } from '../vision/line-model';
+import { analyzeFrame, cropsForQuad } from '../vision/pipeline';
+import { InfoRead, readInfoLine } from '../vision/reader';
+import type { FrameRequest, FrameResult, WorkerRequest, WorkerResponse } from './scan-protocol';
+
+let model: LineModel | null = null;
+let canvas: OffscreenCanvas | null = null;
+let ctx: OffscreenCanvasRenderingContext2D | null = null;
+
+function post(msg: WorkerResponse, transfer: Transferable[] = []): void {
+  postMessage(msg, transfer);
+}
+
+function grab(bitmap: ImageBitmap): RGBAImage {
+  if (!canvas || canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+    canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    ctx = canvas.getContext('2d', { willReadFrequently: true });
+  }
+  ctx!.drawImage(bitmap, 0, 0);
+  const img = ctx!.getImageData(0, 0, bitmap.width, bitmap.height);
+  return { width: img.width, height: img.height, data: img.data };
+}
+
+const GOOD = 0.5;
+
+function handleFrame(req: FrameRequest): void {
+  const t0 = performance.now();
+  const frame = grab(req.bitmap);
+  req.bitmap.close();
+  const t1 = performance.now();
+
+  const infoLine = model ? { region: model.region, ...model.inputSize } : undefined;
+  const analysis = analyzeFrame(frame, { guide: req.guide, debug: req.debug, preview: req.debug, infoLine });
+  let quad = analysis.quad;
+  let crops = analysis.crops;
+  let info: InfoRead | null = null;
+  let flipped = false;
+  const t2 = performance.now();
+  if (model && quad && crops) {
+    info = readInfoLine(model, crops.infoLine);
+    if (!info.parsed || info.confidence < GOOD) {
+      // Maybe the card is upside down: read the other end.
+      const flippedQuad = rotateQuad180(quad);
+      const flippedCrops = cropsForQuad(frame, flippedQuad, infoLine);
+      const alt = readInfoLine(model, flippedCrops.infoLine);
+      if (alt.parsed && alt.confidence > (info.parsed ? info.confidence : -1)) {
+        info = alt;
+        quad = flippedQuad;
+        crops = flippedCrops;
+        flipped = true;
+      }
+    }
+  }
+  const t3 = performance.now();
+
+  const transfer: Transferable[] = [];
+  const keep = (img: RGBAImage | null | undefined): RGBAImage | null => {
+    if (!img) return null;
+    transfer.push(img.data.buffer);
+    return img;
+  };
+  const result: FrameResult = {
+    type: 'result',
+    id: req.id,
+    width: frame.width,
+    height: frame.height,
+    guide: req.guide,
+    quad,
+    scores: analysis.scores,
+    accepted: analysis.accepted,
+    flipped,
+    sharpness: analysis.sharpness,
+    info,
+    nameCrop: req.wantNameCrop ? keep(crops?.name) : null,
+    timings: {
+      capture: t1 - t0,
+      detect: analysis.timings.detect,
+      warp: analysis.timings.warp,
+      model: t3 - t2,
+      total: performance.now() - t0,
+    },
+  };
+  if (req.debug && analysis.debug) {
+    result.debug = {
+      roi: analysis.debug.roi,
+      points: analysis.debug.points,
+      candidates: analysis.debug.candidates,
+      infoCrop: keep(crops?.infoLine),
+      preview: keep(analysis.preview),
+    };
+  }
+  if (req.keepFrame) result.frame = keep(frame) ?? undefined;
+  post(result, transfer);
+}
+
+addEventListener('message', async ({ data }: MessageEvent<WorkerRequest>) => {
+  try {
+    if (data.type === 'init') {
+      model = await LineModel.load(data.modelUrl);
+      const m = model.manifest;
+      post({ type: 'ready', model: { name: m.name, createdAt: m.createdAt, note: m.note, params: m.params } });
+    } else if (data.type === 'frame') {
+      handleFrame(data);
+    }
+  } catch (e) {
+    post({ type: 'error', id: data.type === 'frame' ? data.id : undefined, message: e instanceof Error ? `${e.message}\n${e.stack}` : String(e) });
+  }
+});

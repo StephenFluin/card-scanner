@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "cards": {
+          "$key": {
+            ".validate": "newData.hasChildren(['setCode', 'number', 'count']) && newData.child('count').isNumber() && newData.child('count').val() >= 1 && $key.matches(/^[A-Z0-9]{3}-[0-9]{3}$/)",
+            "setCode": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{3}$/)" },
+            "number": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{3}$/)" },
+            "total": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{3}$/)" },
+            "name": { ".validate": "newData.isString() && newData.val().length <= 80" },
+            "count": { ".validate": "newData.isNumber()" },
+            "firstAdded": { ".validate": "newData.isNumber()" },
+            "lastAdded": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    }
+  }
+}
