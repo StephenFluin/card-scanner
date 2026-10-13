@@ -199,7 +199,7 @@
 
 <section class="panel" aria-labelledby="debug-history">
   <h3 id="debug-history">Recent frames</h3>
-  <div class="scroll">
+  <div class="scroll" tabindex="0" role="region" aria-label="Recent frames table">
     <table class="debug-table">
       <thead>
         <tr>
@@ -252,7 +252,7 @@
     </label>
     <button type="button" (click)="logger.clear()">Clear</button>
   </div>
-  <ul class="log-list">
+  <ul class="log-list" tabindex="0" aria-label="Log entries">
     @for (e of logs(); track $index) {
       <li [class]="'log-' + e.level">{{ e.t }}ms {{ e.level }} [{{ e.category }}] {{ e.message }}</li>
     }

@@ -10,6 +10,9 @@ import type { InfoRead } from '../vision/reader';
 import type { FrameRequest, FrameResult, WorkerRequest, WorkerResponse } from './scan-protocol';
 
 let model: LineModel | null = null;
+/** Running average of one model run (ms), to size the per-frame hypothesis budget. */
+let modelMs = 40;
+const FRAME_BUDGET_MS = 250;
 let canvas: OffscreenCanvas | null = null;
 let ctx: OffscreenCanvasRenderingContext2D | null = null;
 
@@ -42,8 +45,11 @@ function handleFrame(req: FrameRequest): void {
   let tried: { variant: ReadVariant; text: string; confidence: number }[] = [];
   const t2 = performance.now();
   if (model && quad && crops && analysis.accepted) {
-    const read = readCard(model, frame, analysis.alternatives.length ? analysis.alternatives : [quad], infoLine);
+    const maxReads = Math.min(8, Math.max(2, Math.floor(FRAME_BUDGET_MS / modelMs)));
+    const read = readCard(model, frame, analysis.alternatives.length ? analysis.alternatives : [quad], infoLine, maxReads);
     ({ info, quad, crops, variant, tried } = read);
+    const perRead = (performance.now() - t2) / Math.max(1, tried.length);
+    modelMs = modelMs * 0.8 + perRead * 0.2;
   }
   const t3 = performance.now();
 

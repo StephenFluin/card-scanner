@@ -399,7 +399,7 @@ function pairRoles(side: Side, lines: EdgeLine[], guide: Rect): number[] {
 export function detectCard(img: RGBAImage, opts: DetectOptions): DetectResult {
   const guide = opts.guide;
   const bandPx = (opts.band ?? 0.22) * guide.w;
-  const minGradient = opts.minGradient ?? 48;
+  const minGradient = opts.minGradient ?? 32;
   const grad = colorGradient(img);
   const tol = Math.max(1.2, guide.w / 220);
 

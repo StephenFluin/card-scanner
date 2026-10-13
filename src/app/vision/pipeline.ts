@@ -213,7 +213,14 @@ const GOOD_READ = 0.5;
  *    instead of the card edge (grow the quad by the border width).
  * The model's confidence is the referee between hypotheses.
  */
-export function readCard(model: LineModel, frame: RGBAImage, quads: Quad | readonly Quad[], infoLine?: InfoLineSpec): CardRead {
+export function readCard(
+  model: LineModel,
+  frame: RGBAImage,
+  quads: Quad | readonly Quad[],
+  infoLine?: InfoLineSpec,
+  /** Maximum model runs (hypotheses) for this frame; slow devices use fewer. */
+  maxReads = 8,
+): CardRead {
   const spec = infoLine ?? { region: model.region, ...model.inputSize };
   const list: readonly Quad[] = isQuadList(quads) ? quads : [quads];
   const hypotheses: [ReadVariant, Quad][] = [];
@@ -223,16 +230,18 @@ export function readCard(model: LineModel, frame: RGBAImage, quads: Quad | reado
   });
   const expanded = expandQuad(list[0], BORDER_FRACTION.x, BORDER_FRACTION.y);
   hypotheses.push(['expanded', expanded], ['expanded-flipped', rotateQuad180(expanded)]);
-  let best: CardRead | null = null;
   const tried: CardRead['tried'] = [];
-  for (const [variant, q] of hypotheses) {
-    const crops = cropsForQuad(frame, q, spec);
-    const info = readInfoLine(model, crops.infoLine);
+  const rank = (i: InfoRead) => (i.parsed ? i.confidence : -1 + i.confidence);
+  let best: { info: InfoRead; quad: Quad; variant: ReadVariant; infoCrop: RGBAImage } | null = null;
+  for (const [variant, q] of hypotheses.slice(0, Math.max(1, maxReads))) {
+    // Only the info line is needed to judge a hypothesis; other crops are made for the winner.
+    const infoCrop = warpCardRegion(frame, cardToImage(q), spec.region, spec.width, spec.height, 2);
+    const info = readInfoLine(model, infoCrop);
     tried.push({ variant, text: info.text, confidence: info.confidence });
-    const score = info.parsed ? info.confidence : -1 + info.confidence;
-    const bestScore = best ? (best.info.parsed ? best.info.confidence : -1 + best.info.confidence) : -Infinity;
-    if (score > bestScore) best = { info, quad: q, crops, variant, tried };
+    if (!best || rank(info) > rank(best.info)) best = { info, quad: q, variant, infoCrop };
     if (info.parsed && info.confidence >= GOOD_READ) break;
   }
-  return best!;
+  const win = best!;
+  const crops: FrameCrops = { infoLine: win.infoCrop, name: cropRegion(frame, cardToImage(win.quad), NAME_REGION, NAME_CARD_WIDTH) };
+  return { info: win.info, quad: win.quad, crops, variant: win.variant, tried };
 }

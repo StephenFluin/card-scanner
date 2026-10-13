@@ -16,7 +16,17 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from codebox import find_code_box, find_number_text, random_code, random_number, render_code_box, replace_number
+from codebox import (
+    GlyphBank,
+    extract_code_glyphs,
+    find_code_box,
+    find_number_text,
+    random_code,
+    random_number,
+    render_code_box,
+    replace_number,
+    swap_code_letters,
+)
 from common import CARD_ASPECT, INFO_LINE, INPUT_H, INPUT_W, encode
 
 # Margin (card widths) kept around the info line when pre-cropping scans so
@@ -24,8 +34,11 @@ from common import CARD_ASPECT, INFO_LINE, INPUT_H, INPUT_W, encode
 MARGIN = 0.06
 
 
-def load_scan_crops(scan_dir: Path, codes_include=None, codes_exclude=None):
-    """Loads every scan once and keeps only the area around the info line."""
+def load_scan_crops(scan_dir: Path, codes_include=None, codes_exclude=None, bank: GlyphBank | None = None):
+    """
+    Loads every scan once and keeps only the area around the info line.
+    If `bank` is given, real set-code letters from these scans are added to it.
+    """
     manifest = json.loads((scan_dir / "manifest.json").read_text())
     items = []
     for entry in manifest:
@@ -51,9 +64,15 @@ def load_scan_crops(scan_dir: Path, codes_include=None, codes_exclude=None):
             rgb = crop
         box = find_code_box(im[:, :, :3])
         num = find_number_text(np.ascontiguousarray(im[:, :, :3]), box)
+        glyphs = extract_code_glyphs(np.ascontiguousarray(im[:, :, :3]), box, entry["code"])
+        if bank is not None:
+            bank.add(entry["code"], glyphs)
+        if glyphs is not None:
+            glyphs = {**glyphs, "glyphs": [(gx - x0, gy - y0, gw, gh, a) for gx, gy, gw, gh, a in glyphs["glyphs"]]}
         if num is not None:
             num = {**num, "x": num["x"] - x0, "y": num["y"] - y0, "mask_xy": (num["mask_xy"][0] - x0, num["mask_xy"][1] - y0)}
         items.append({
+            "glyphs": glyphs,
             "num": num,
             # Set-code box relative to the crop, for synthetic code replacement.
             "box": (box[0] - x0, box[1] - y0, box[2], box[3]) if box else None,
@@ -104,6 +123,7 @@ class InfoLineDataset(Dataset):
         synth_code: float = 0.0,
         synth_number: float = 0.0,
         negative: float = 0.0,
+        bank: GlyphBank | None = None,
     ):
         """
         difficulty: fixed 0..1.3 degradation strength, or None to sample one per example.
@@ -114,6 +134,7 @@ class InfoLineDataset(Dataset):
         self.synth_code = synth_code
         self.synth_number = synth_number
         self.negative = negative
+        self.bank = bank
         self.items = items
         self.length = length
         self.seed = seed
@@ -144,7 +165,13 @@ class InfoLineDataset(Dataset):
         img = (rgb * alpha + bg * (1 - alpha)).astype(np.uint8)
 
         label = item["label"]
-        if item["box"] is not None and rng.random() < self.synth_code:
+        r = rng.random()
+        if self.bank is not None and item["glyphs"] is not None and r < self.synth_code / 2:
+            # Half of the synthetic codes use real letters cut from other cards.
+            new = swap_code_letters(img, item["glyphs"], self.bank, rng)
+            if new:
+                label = new + label[3:]
+        elif item["box"] is not None and r < self.synth_code:
             bx, by, bw, bh = item["box"]
             code = random_code(rng)
             box_bgr, box_a = render_code_box(bw, bh, code, rng)

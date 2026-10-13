@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 
 from common import INPUT_H, INPUT_W
+from codebox import GlyphBank
 from dataset import InfoLineDataset, load_scan_crops
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,7 +38,7 @@ def _init(items, args):
 def _render(job):
     idx, seed = job
     item = _items[idx % len(_items)]
-    ds = InfoLineDataset([item], 1, seed=seed, difficulty=_args["difficulty"], clean=_args["clean"], synth_code=_args["synth_code"], synth_number=_args["synth_number"], negative=_args["negative"])
+    ds = InfoLineDataset([item], 1, seed=seed, difficulty=_args["difficulty"], clean=_args["clean"], synth_code=_args["synth_code"], synth_number=_args["synth_number"], negative=_args["negative"], bank=_args["bank"])
     rng = np.random.default_rng((seed, idx))
     x, label = ds.render(item, rng)
     return np.clip(np.round((x + 0.5) * 255), 0, 255).astype(np.uint8), label
@@ -60,7 +61,9 @@ def main():
 
     include = set(args.include.split(",")) if args.include else None
     exclude = set(args.exclude.split(",")) if args.exclude else None
-    items = load_scan_crops(ROOT / ".cache" / "scans", codes_include=include, codes_exclude=exclude)
+    bank = GlyphBank()
+    items = load_scan_crops(ROOT / ".cache" / "scans", codes_include=include, codes_exclude=exclude, bank=bank)
+    print(f"real glyph bank: {bank.chars} ({sum(len(v) for v in bank.by_char.values())} glyphs)")
     n = len(items) * args.per_card
     print(f"{len(items)} scans x {args.per_card} = {n} samples at {INPUT_H}x{INPUT_W}")
     out = ROOT / ".cache" / "dataset" / args.name
@@ -69,7 +72,7 @@ def main():
     labels = [""] * n
     jobs = [(i, args.seed) for i in range(n)]
     t0 = time.time()
-    shared = {"difficulty": args.difficulty, "clean": args.clean, "synth_code": args.synth_code, "synth_number": args.synth_number, "negative": args.negative}
+    shared = {"difficulty": args.difficulty, "clean": args.clean, "synth_code": args.synth_code, "synth_number": args.synth_number, "negative": args.negative, "bank": bank}
     # 'spawn': forking after PIL/FreeType or OpenCV initialized can deadlock workers.
     ctx = mp.get_context("spawn")
     with ctx.Pool(args.workers, initializer=_init, initargs=(items, shared)) as pool:

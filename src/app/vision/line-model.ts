@@ -48,12 +48,64 @@ function halfToFloat(h: number): number {
   return (s ? -1 : 1) * Math.pow(2, e - 15) * (1 + f / 1024);
 }
 
-function conv(x: Tensor, L: Extract<LayerSpec, { type: 'conv' }>, weights: Float32Array): Tensor {
+type ConvSpec = Extract<LayerSpec, { type: 'conv' }>;
+
+function conv(x: Tensor, L: ConvSpec, weights: Float32Array): Tensor {
   const oh = x.h + 2 * L.ph - L.kh + 1;
   const ow = x.w + 2 * L.pw - L.kw + 1;
   const out = new Float32Array(L.outC * oh * ow);
   const plane = oh * ow;
-  for (let o = 0; o < L.outC; o++) {
+  // Four output channels per pass: each input value is loaded once for all four.
+  const blocked = L.outC - (L.outC % 4);
+  for (let o = 0; o < blocked; o += 4) convBlock4(x, L, weights, out, o, oh, ow);
+  for (let o = blocked; o < L.outC; o++) convSingle(x, L, weights, out, o, oh, ow);
+  if (L.relu) {
+    for (let k = 0; k < out.length; k++) if (out[k] < 0) out[k] = 0;
+  }
+  return { c: L.outC, h: oh, w: ow, data: out };
+}
+
+function convBlock4(x: Tensor, L: ConvSpec, weights: Float32Array, out: Float32Array, o: number, oh: number, ow: number): void {
+  const plane = oh * ow;
+  const p0 = o * plane, p1 = p0 + plane, p2 = p1 + plane, p3 = p2 + plane;
+  out.fill(weights[L.b + o], p0, p0 + plane);
+  out.fill(weights[L.b + o + 1], p1, p1 + plane);
+  out.fill(weights[L.b + o + 2], p2, p2 + plane);
+  out.fill(weights[L.b + o + 3], p3, p3 + plane);
+  const kk = L.kh * L.kw;
+  const stride = L.inC * kk;
+  const xd = x.data;
+  for (let i = 0; i < L.inC; i++) {
+    const ibase = i * x.h * x.w;
+    for (let ky = 0; ky < L.kh; ky++) {
+      for (let kx = 0; kx < L.kw; kx++) {
+        const wi = L.w + (o * L.inC + i) * kk + ky * L.kw + kx;
+        const w0 = weights[wi], w1 = weights[wi + stride], w2 = weights[wi + 2 * stride], w3 = weights[wi + 3 * stride];
+        const dx = kx - L.pw;
+        const xStart = Math.max(0, -dx);
+        const xEnd = Math.min(ow, x.w - dx);
+        for (let y = 0; y < oh; y++) {
+          const sy = y + ky - L.ph;
+          if (sy < 0 || sy >= x.h) continue;
+          const orow = y * ow;
+          const irow = ibase + sy * x.w + dx;
+          for (let xx = xStart; xx < xEnd; xx++) {
+            const v = xd[irow + xx];
+            const k = orow + xx;
+            out[p0 + k] += w0 * v;
+            out[p1 + k] += w1 * v;
+            out[p2 + k] += w2 * v;
+            out[p3 + k] += w3 * v;
+          }
+        }
+      }
+    }
+  }
+}
+
+function convSingle(x: Tensor, L: ConvSpec, weights: Float32Array, out: Float32Array, o: number, oh: number, ow: number): void {
+  const plane = oh * ow;
+  {
     const bias = weights[L.b + o];
     const obase = o * plane;
     out.fill(bias, obase, obase + plane);
@@ -76,11 +128,7 @@ function conv(x: Tensor, L: Extract<LayerSpec, { type: 'conv' }>, weights: Float
         }
       }
     }
-    if (L.relu) {
-      for (let k = obase; k < obase + plane; k++) if (out[k] < 0) out[k] = 0;
-    }
   }
-  return { c: L.outC, h: oh, w: ow, data: out };
 }
 
 function maxpool(x: Tensor, kh: number, kw: number): Tensor {

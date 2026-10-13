@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { INFO_LINE, INFO_LINE_INPUT, NAME_CARD_WIDTH, NAME_REGION } from '../src/app/vision/card-layout';
 import { Catalog, CatalogIndex, cardKey } from '../src/app/vision/catalog';
+import { ReadFusion } from '../src/app/vision/fusion';
 import { cardToImage, Quad, warpCardRegion } from '../src/app/vision/homography';
 import type { RGBAImage } from '../src/app/vision/image';
 import { LineModel, LineModelManifest } from '../src/app/vision/line-model';
@@ -40,11 +41,55 @@ const { values: args } = parseArgs({
     sets: { type: 'string' },
     quiet: { type: 'boolean', default: false },
     'detect-only': { type: 'boolean', default: false },
+    fusion: { type: 'string', default: '0' },
+    'no-catalog': { type: 'boolean', default: false },
   },
 });
 
 function cornerError(a: Quad, b: Quad): number {
   return Math.max(...a.map((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y)));
+}
+
+/**
+ * Simulates holding one card in front of the camera: K consecutive frames of
+ * the same scene (small pose/blur jitter, fresh noise) through the real
+ * multi-frame fusion. Reports correct captures, wrong captures and misses.
+ */
+async function fusionEval(model: LineModel, index: CatalogIndex | null, picks: ScanLabel[], k: number): Promise<void> {
+  const rand = mulberry32(parseInt(args.seed!, 10) + 1000);
+  const guide = defaultGuide(1080, 1920);
+  const infoLine = { region: model.region, ...model.inputSize };
+  let correct = 0, wrong = 0, none = 0, framesToConfirm = 0;
+  for (const card of picks) {
+    const img = await loadRGBA(join(CACHE, 'scans', card.file));
+    const base = randomParams(rand, args.difficulty as 'easy' | 'normal' | 'hard');
+    const fusion = new ReadFusion(index);
+    let outcome = 'none';
+    let t = 0;
+    for (let f = 0; f < k; f++) {
+      const p = { ...base, rotationDeg: base.rotationDeg + (rand() - 0.5) * 0.6, blur: Math.max(0, base.blur + (rand() - 0.5) * 0.4), offsetX: base.offsetX + (rand() - 0.5) * 0.004 };
+      const { frame } = await synthesize(img, 1080, 1920, guide, p, rand);
+      const a = analyzeFrame(frame, { guide, infoLine });
+      t += 150;
+      if (!a.accepted || !a.quad) continue;
+      const read = readCard(model, frame, a.alternatives.length ? a.alternatives : [a.quad], infoLine);
+      const state = fusion.push({ info: read.info }, t);
+      if (state.status === 'confirmed' && state.best) {
+        outcome = state.best.identity.key === cardKey(card.code, card.number) ? 'correct' : `WRONG ${state.best.identity.key}`;
+        framesToConfirm += f + 1;
+        break;
+      }
+    }
+    if (outcome === 'correct') correct++;
+    else if (outcome === 'none') none++;
+    else wrong++;
+    if (outcome !== 'correct' || !args.quiet) console.log(`${outcome.padEnd(16)} ${card.label.padEnd(13)} bg=${base.background} blur=${base.blur.toFixed(1)} glare=${base.glare}`);
+  }
+  const n = picks.length;
+  console.log(`\n=== fusion (${k} frames per card, catalog ${index ? 'on' : 'OFF (simulates a brand-new set)'}) ===`);
+  console.log(`captured correctly  ${((100 * correct) / n).toFixed(1)}%   avg frames to confirm ${(framesToConfirm / Math.max(1, correct + wrong)).toFixed(1)}`);
+  console.log(`captured WRONG      ${((100 * wrong) / n).toFixed(1)}%`);
+  console.log(`not captured        ${((100 * none) / n).toFixed(1)}%`);
 }
 
 async function main(): Promise<void> {
@@ -66,6 +111,11 @@ async function main(): Promise<void> {
   const rand = mulberry32(parseInt(args.seed!, 10));
   const n = parseInt(args.n!, 10);
   const picks = Array.from({ length: n }, () => pool[Math.floor(rand() * pool.length)]);
+
+  if (parseInt(args.fusion!, 10) > 0 && model) {
+    await fusionEval(model, args['no-catalog'] ? null : index, picks, parseInt(args.fusion!, 10));
+    return;
+  }
 
   const outDir = join(CACHE, 'eval', new Date().toISOString().replace(/[:.]/g, '-'));
   if (args['save-failures']) await mkdir(outDir, { recursive: true });

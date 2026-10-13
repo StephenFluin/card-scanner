@@ -62,7 +62,10 @@ def find_code_box(bgr: np.ndarray):
         x, y, w, h, area = stats[i]
         if h < 0.012 * H or h > 0.03 * H or not (1.6 <= w / h <= 3.6):
             continue
-        if area < 0.45 * w * h:
+        # Wide letters (MEW, TWM) leave well under half of the box dark.
+        if area < 0.28 * w * h:
+            continue
+        if not (0.075 * W <= x0 + x <= 0.125 * W):
             continue
         if best is None or area > best[4]:
             best = (x, y, w, h, area)
@@ -256,3 +259,144 @@ def replace_number(img: np.ndarray, num: dict, old_text: str, new_text: str, rng
     region = img[ty : ty + target_h, tx : tx + target_w].astype(np.float32)
     bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR).astype(np.float32)
     img[ty : ty + target_h, tx : tx + target_w] = (bgr * a + region * (1 - a)).astype(np.uint8)
+
+
+# ---------------------------------------------------------------------------
+# Real-glyph letter swapping.
+#
+# Fonts only approximate the card's set-code typeface. We also cut the actual
+# letters out of real set-code boxes (labels tell us which letter is which)
+# and rebuild codes from them, so the model learns each letter in the real font.
+
+
+def extract_code_glyphs(bgr: np.ndarray, box, code: str):
+    """
+    Finds the three code letters inside a real set-code box.
+    Returns dict(glyphs=[(x, y, w, h, alpha)], dark, light) in scan pixels, or None.
+    """
+    if box is None or len(code) != 3:
+        return None
+    bx, by, bw, bh = box
+    region = bgr[by : by + bh, bx : bx + bw]
+    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+    t, white = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    n, labels, stats, _ = cv2.connectedComponentsWithStats((white > 0).astype(np.uint8), connectivity=8)
+    comps = [
+        (i, *stats[i][:4])
+        for i in range(1, n)
+        # Letters: tall-ish, narrow, not the light outline ring around the box.
+        if stats[i][3] >= 0.4 * bh and stats[i][2] <= 0.45 * bw and stats[i][3] <= 0.85 * bh
+    ]
+    if not comps:
+        return None
+    max_h = max(c[4] for c in comps)
+    # Code letters are taller than the small "EN" that follows them.
+    tall = sorted((c for c in comps if c[4] >= 0.85 * max_h), key=lambda c: c[1])
+    dark = float(np.median(gray[white == 0])) if (white == 0).any() else 20.0
+    light = float(np.percentile(gray[white > 0], 90)) if (white > 0).any() else 230.0
+    if light - dark < 60:
+        return None
+    if len(tall) == 3:
+        spans = [(x, x + w) for _, x, _, w, _ in tall]
+    else:
+        # Letters touch at this resolution: split the run of tall components
+        # using the letters' relative widths (from a reference font), snapping
+        # each cut to the column with the least ink nearby.
+        x0 = min(c[1] for c in tall)
+        x1 = max(c[1] + c[3] for c in tall)
+        if x1 - x0 < 0.4 * bw:
+            return None
+        widths = [_ref_width(ch) for ch in code]
+        ink = (white > 0)[:, x0:x1].sum(axis=0).astype(np.float32)
+        cuts = []
+        acc = 0.0
+        for wch in widths[:2]:
+            acc += wch
+            guess = int(round((x1 - x0) * acc / sum(widths)))
+            lo, hi = max(1, guess - 2), min(len(ink) - 1, guess + 3)
+            cuts.append(lo + int(np.argmin(ink[lo:hi])) if hi > lo else guess)
+        if not (0 < cuts[0] < cuts[1] < x1 - x0):
+            return None
+        spans = [(x0, x0 + cuts[0]), (x0 + cuts[0], x0 + cuts[1]), (x0 + cuts[1], x1)]
+    top = min(c[2] for c in tall)
+    bottom = max(c[2] + c[4] for c in tall)
+    glyphs = []
+    for sx0, sx1 in spans:
+        if sx1 - sx0 < 2:
+            return None
+        g = gray[top:bottom, sx0:sx1].astype(np.float32)
+        alpha = np.clip((g - dark) / (light - dark), 0, 1)
+        glyphs.append((bx + sx0, by + top, sx1 - sx0, bottom - top, alpha))
+    return {"glyphs": glyphs, "dark": dark, "light": light}
+
+
+_REF_FONT = None
+
+
+def _ref_width(ch: str) -> float:
+    """Advance width of a character in a condensed bold reference font."""
+    global _REF_FONT
+    if _REF_FONT is None:
+        _REF_FONT = ImageFont.truetype(FONTS[0], 100)
+    return float(_REF_FONT.getlength(ch))
+
+
+class GlyphBank:
+    """Real set-code letter images collected from training scans."""
+
+    def __init__(self):
+        self.by_char: dict[str, list[np.ndarray]] = {}
+
+    def add(self, code: str, info) -> None:
+        if info is None:
+            return
+        for ch, (_, _, _, _, alpha) in zip(code, info["glyphs"]):
+            self.by_char.setdefault(ch, []).append(alpha)
+
+    @property
+    def chars(self) -> str:
+        return "".join(sorted(self.by_char))
+
+    def sample(self, ch: str, rng: np.random.Generator) -> np.ndarray:
+        options = self.by_char[ch]
+        return options[int(rng.integers(len(options)))]
+
+
+def swap_code_letters(img: np.ndarray, info, bank: GlyphBank, rng: np.random.Generator) -> str | None:
+    """
+    Replaces the three code letters in `img` (BGR, coordinates as in `info`)
+    with random letters from the bank. Returns the new code, or None.
+    """
+    chars = bank.chars
+    if info is None or len(chars) < 5:
+        return None
+    new = "".join(chars[int(rng.integers(len(chars)))] for _ in range(3))
+    glyphs = info["glyphs"]
+    dark, light = info["dark"], info["light"]
+    # Erase the old letters with the box colour.
+    for x, y, w, h, _ in glyphs:
+        x0, y0 = max(0, x - 1), max(0, y - 1)
+        img[y0 : y + h + 1, x0 : x + w + 1] = int(dark)
+    h = int(np.median([g[3] for g in glyphs]))
+    bottom = int(np.median([g[1] + g[3] for g in glyphs]))
+    span_x0 = glyphs[0][0]
+    span_x1 = glyphs[-1][0] + glyphs[-1][2]
+    gaps = [glyphs[i + 1][0] - (glyphs[i][0] + glyphs[i][2]) for i in range(2)]
+    gap = max(0, int(round(np.mean(gaps))))
+    letters = [bank.sample(c, rng) for c in new]
+    widths = [max(1, int(round(a.shape[1] * h / a.shape[0]))) for a in letters]
+    total = sum(widths) + 2 * gap
+    limit = (span_x1 - span_x0) * 1.25
+    if total > limit:
+        k = limit / total
+        widths = [max(1, int(w * k)) for w in widths]
+    x = span_x0
+    for alpha, w in zip(letters, widths):
+        a = cv2.resize(alpha, (w, h), interpolation=cv2.INTER_AREA if alpha.shape[0] > h else cv2.INTER_LINEAR)[:, :, None]
+        y0 = bottom - h
+        region = img[y0:bottom, x : x + w].astype(np.float32)
+        if region.shape[:2] != a.shape[:2]:
+            return None
+        img[y0:bottom, x : x + w] = (region * (1 - a) + light * a).astype(np.uint8)
+        x += w + gap
+    return new
