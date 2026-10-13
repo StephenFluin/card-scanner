@@ -12,14 +12,14 @@ Last updated 2026-10-13.
 - **App**: scanner page (camera, overlay, last capture with Undo/+1, tips, debug panel), collection page (by set, progress, +/-). Firebase Auth (Google) + RTDB, or localStorage until configured or signed in.
 
 ## Results (synthetic camera frames, `npm run eval`)
-- Detection on contrasting backgrounds: ~95% of frames within 1.5% corner error (median 0.2%). White/gray backgrounds mostly fail: the silver border is invisible. The border-expanded fallback recovers many of these; the UI recommends a dark surface.
-- v3 model on **sets it never saw** (PBL, DRI), 8 frames per card: 93.8% captured correctly with catalog (0% wrong); 91.3% with no catalog at all (brand-new set), 1.3% wrong.
-- Browser (`?image=` samples): ~11 fps, ~90 ms/frame on desktop; card captured within ~300 ms.
+- **Shipped model** (`public/models/info-line.*`, v4 trained on all sets), 8 frames per card: **95.0% captured correctly, 0% wrong**, 2.2 frames on average (normal difficulty); hard difficulty 90.8% / 0% wrong. Single frame: 90.5% read, 100% precision when confident. Detection + read ≈ 46 ms/frame on desktop.
+- **Generalization to new sets** (v4 trained without PBL/DRI): 97.5% correct / 0% wrong with those sets in the catalog; **93.3% correct / 0.8% wrong with no catalog at all** (a brand-new set).
+- Detection on contrasting backgrounds: ~95% of frames within 1.5% corner error (median 0.2%). On white/gray backgrounds the silver border is invisible; the border-expanded read hypothesis recovers most of them. Remaining misses are mostly there, so the UI recommends a dark surface.
 
 ## Next
-1. Finish the v4 comparison (real-glyph code swaps, model width 1 vs 1.5). Train the final model on all sets (`train-all-v4`), export it, and commit `public/models/`.
-2. Fill in `src/app/firebase.config.ts`, enable Google sign-in and RTDB, then deploy `database.rules.json`.
-3. Test on a phone: `npx ng serve --ssl --host 0.0.0.0` (add the LAN host to `angular.json` `allowedHosts`). Use the debug panel's "Download debug bundle" / "Record 5s clip" for anything that misbehaves; clips and photos can be replayed with `?video=` / `?image=`.
+1. Fill in `src/app/firebase.config.ts`, enable Google sign-in and RTDB, then deploy `database.rules.json`.
+2. Test on a phone: `npm run start:phone`, then open `https://<this machine's LAN IP>:4200` and accept the self-signed certificate. Use the debug panel's "Download debug bundle" / "Record 5s clip" for anything that misbehaves; clips and photos can be replayed with `?video=` / `?image=`.
+3. When a new set is released: `npm run catalog` (names/images), and optionally `npm run scans` plus a retrain (training/README.md) once scans exist. Scanning works before either.
 4. If real-world detection struggles: a learned edge/corner detector trained on synthetic frames, or a printed dark scanning mat.
 
 ## Commands

@@ -220,16 +220,27 @@ export function readCard(
   infoLine?: InfoLineSpec,
   /** Maximum model runs (hypotheses) for this frame; slow devices use fewer. */
   maxReads = 8,
+  /** Try this variant first (e.g. the one that won on the previous frame). */
+  prefer?: ReadVariant | null,
 ): CardRead {
   const spec = infoLine ?? { region: model.region, ...model.inputSize };
   const list: readonly Quad[] = isQuadList(quads) ? quads : [quads];
-  const hypotheses: [ReadVariant, Quad][] = [];
-  list.slice(0, 3).forEach((q, i) => {
-    hypotheses.push([i === 0 ? 'normal' : `alt${i}` as ReadVariant, q]);
-    hypotheses.push([i === 0 ? 'flipped' : `alt${i}-flipped` as ReadVariant, rotateQuad180(q)]);
-  });
   const expanded = expandQuad(list[0], BORDER_FRACTION.x, BORDER_FRACTION.y);
-  hypotheses.push(['expanded', expanded], ['expanded-flipped', rotateQuad180(expanded)]);
+  // Most likely first: the detected quad, then the inner-frame fallback (common
+  // on light backgrounds), the runner-up quad, an upside-down card, the rest.
+  const all: [ReadVariant, Quad | undefined][] = [
+    ['normal', list[0]],
+    ['expanded', expanded],
+    ['alt1', list[1]],
+    ['flipped', rotateQuad180(list[0])],
+    ['alt2', list[2]],
+    ['expanded-flipped', rotateQuad180(expanded)],
+    ['alt1-flipped', list[1] && rotateQuad180(list[1])],
+    ['alt2-flipped', list[2] && rotateQuad180(list[2])],
+  ];
+  const hypotheses = all.filter((h): h is [ReadVariant, Quad] => !!h[1]);
+  const preferred = hypotheses.findIndex(([v]) => v === prefer);
+  if (preferred > 0) hypotheses.unshift(...hypotheses.splice(preferred, 1));
   const tried: CardRead['tried'] = [];
   const rank = (i: InfoRead) => (i.parsed ? i.confidence : -1 + i.confidence);
   let best: { info: InfoRead; quad: Quad; variant: ReadVariant; infoCrop: RGBAImage } | null = null;

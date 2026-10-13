@@ -13,6 +13,8 @@ let model: LineModel | null = null;
 /** Running average of one model run (ms), to size the per-frame hypothesis budget. */
 let modelMs = 40;
 const FRAME_BUDGET_MS = 250;
+/** Consecutive frames of the same scene usually need the same hypothesis. */
+let lastWinner: ReadVariant | null = null;
 let canvas: OffscreenCanvas | null = null;
 let ctx: OffscreenCanvasRenderingContext2D | null = null;
 
@@ -46,8 +48,9 @@ function handleFrame(req: FrameRequest): void {
   const t2 = performance.now();
   if (model && quad && crops && analysis.accepted) {
     const maxReads = Math.min(8, Math.max(2, Math.floor(FRAME_BUDGET_MS / modelMs)));
-    const read = readCard(model, frame, analysis.alternatives.length ? analysis.alternatives : [quad], infoLine, maxReads);
+    const read = readCard(model, frame, analysis.alternatives.length ? analysis.alternatives : [quad], infoLine, maxReads, lastWinner);
     ({ info, quad, crops, variant, tried } = read);
+    lastWinner = read.info.parsed ? read.variant : null;
     const perRead = (performance.now() - t2) / Math.max(1, tried.length);
     modelMs = modelMs * 0.8 + perRead * 0.2;
   }

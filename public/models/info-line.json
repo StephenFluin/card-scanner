@@ -1,0 +1,138 @@
+{
+ "name": "info-line",
+ "createdAt": "2026-10-13T22:10:49.258671+00:00",
+ "note": "final v4: all sets, synthetic codes/numbers/negatives",
+ "input": {
+  "height": 32,
+  "width": 248,
+  "region": {
+   "x": 0.02,
+   "y": 0.934,
+   "w": 0.37,
+   "h": 0.034
+  },
+  "normalization": "gray-p2-p98-centered"
+ },
+ "charset": " /0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+ "dtype": "float16",
+ "weights": "info-line.bin",
+ "params": 227399,
+ "layers": [
+  {
+   "type": "conv",
+   "inC": 1,
+   "outC": 16,
+   "kh": 3,
+   "kw": 3,
+   "ph": 1,
+   "pw": 1,
+   "relu": true,
+   "w": 0,
+   "b": 144
+  },
+  {
+   "type": "maxpool",
+   "kh": 2,
+   "kw": 2
+  },
+  {
+   "type": "conv",
+   "inC": 16,
+   "outC": 32,
+   "kh": 3,
+   "kw": 3,
+   "ph": 1,
+   "pw": 1,
+   "relu": true,
+   "w": 160,
+   "b": 4768
+  },
+  {
+   "type": "maxpool",
+   "kh": 2,
+   "kw": 2
+  },
+  {
+   "type": "conv",
+   "inC": 32,
+   "outC": 64,
+   "kh": 3,
+   "kw": 3,
+   "ph": 1,
+   "pw": 1,
+   "relu": true,
+   "w": 4800,
+   "b": 23232
+  },
+  {
+   "type": "conv",
+   "inC": 64,
+   "outC": 64,
+   "kh": 3,
+   "kw": 3,
+   "ph": 1,
+   "pw": 1,
+   "relu": true,
+   "w": 23296,
+   "b": 60160
+  },
+  {
+   "type": "maxpool",
+   "kh": 2,
+   "kw": 1
+  },
+  {
+   "type": "conv",
+   "inC": 64,
+   "outC": 96,
+   "kh": 3,
+   "kw": 3,
+   "ph": 1,
+   "pw": 1,
+   "relu": true,
+   "w": 60224,
+   "b": 115520
+  },
+  {
+   "type": "maxpool",
+   "kh": 2,
+   "kw": 1
+  },
+  {
+   "type": "conv",
+   "inC": 96,
+   "outC": 128,
+   "kh": 2,
+   "kw": 1,
+   "ph": 0,
+   "pw": 0,
+   "relu": true,
+   "w": 115616,
+   "b": 140192
+  },
+  {
+   "type": "conv",
+   "inC": 128,
+   "outC": 128,
+   "kh": 1,
+   "kw": 5,
+   "ph": 0,
+   "pw": 2,
+   "relu": true,
+   "w": 140320,
+   "b": 222240
+  },
+  {
+   "type": "conv",
+   "inC": 128,
+   "outC": 39,
+   "kh": 1,
+   "kw": 1,
+   "ph": 0,
+   "pw": 0,
+   "relu": false,
+   "w": 222368,
+   "b": 227360
+  }
+ ]
+}
