@@ -38,7 +38,7 @@ export interface FrameSummary {
   score: number | null;
   read: string | null;
   confidence: number | null;
-  flipped: boolean;
+  variant: string | null;
   vote: string;
   status: FusionState['status'] | 'none';
   timings: FrameResult['timings'];
@@ -285,7 +285,7 @@ export class ScanController implements OnDestroy {
       score: r.scores ? round(r.scores.total) : null,
       read: r.info?.text ?? null,
       confidence: r.info ? round(r.info.confidence) : null,
-      flipped: r.flipped,
+      variant: r.variant,
       vote: fusion?.lastVote ?? (r.accepted ? '' : 'no card'),
       status: fusion?.status ?? 'none',
       timings: mapValues(r.timings, (v) => Math.round(v)),
@@ -293,7 +293,7 @@ export class ScanController implements OnDestroy {
     this.history.update((h) => [summary, ...h].slice(0, HISTORY));
     this.logger.debug(
       'read',
-      `#${r.id} ${r.accepted ? `card score=${summary.score}` : 'no card'}${r.info ? ` read="${r.info.text}" conf=${summary.confidence}${r.flipped ? ' (flipped)' : ''}` : ''} ${summary.vote} [${summary.timings.total}ms]`,
+      `#${r.id} ${r.accepted ? `card score=${summary.score}` : 'no card'}${r.info ? ` read="${r.info.text}" conf=${summary.confidence}${r.variant && r.variant !== 'normal' ? ` (${r.variant})` : ''}` : ''} ${summary.vote} [${summary.timings.total}ms]`,
     );
     if (keepFrame) {
       this.snapshot.set({ at: new Date().toISOString(), result: r, fusion, name: this.lastName() });

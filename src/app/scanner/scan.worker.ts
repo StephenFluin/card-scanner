@@ -3,11 +3,10 @@
  * Runs the per-frame vision pipeline off the main thread:
  * find card edges -> rectify -> read the info line with our model.
  */
-import { rotateQuad180 } from '../vision/homography';
 import type { RGBAImage } from '../vision/image';
 import { LineModel } from '../vision/line-model';
-import { analyzeFrame, cropsForQuad } from '../vision/pipeline';
-import { InfoRead, readInfoLine } from '../vision/reader';
+import { analyzeFrame, readCard, ReadVariant } from '../vision/pipeline';
+import type { InfoRead } from '../vision/reader';
 import type { FrameRequest, FrameResult, WorkerRequest, WorkerResponse } from './scan-protocol';
 
 let model: LineModel | null = null;
@@ -28,8 +27,6 @@ function grab(bitmap: ImageBitmap): RGBAImage {
   return { width: img.width, height: img.height, data: img.data };
 }
 
-const GOOD = 0.5;
-
 function handleFrame(req: FrameRequest): void {
   const t0 = performance.now();
   const frame = grab(req.bitmap);
@@ -41,22 +38,12 @@ function handleFrame(req: FrameRequest): void {
   let quad = analysis.quad;
   let crops = analysis.crops;
   let info: InfoRead | null = null;
-  let flipped = false;
+  let variant: ReadVariant | null = null;
+  let tried: { variant: ReadVariant; text: string; confidence: number }[] = [];
   const t2 = performance.now();
-  if (model && quad && crops) {
-    info = readInfoLine(model, crops.infoLine);
-    if (!info.parsed || info.confidence < GOOD) {
-      // Maybe the card is upside down: read the other end.
-      const flippedQuad = rotateQuad180(quad);
-      const flippedCrops = cropsForQuad(frame, flippedQuad, infoLine);
-      const alt = readInfoLine(model, flippedCrops.infoLine);
-      if (alt.parsed && alt.confidence > (info.parsed ? info.confidence : -1)) {
-        info = alt;
-        quad = flippedQuad;
-        crops = flippedCrops;
-        flipped = true;
-      }
-    }
+  if (model && quad && crops && analysis.accepted) {
+    const read = readCard(model, frame, analysis.alternatives.length ? analysis.alternatives : [quad], infoLine);
+    ({ info, quad, crops, variant, tried } = read);
   }
   const t3 = performance.now();
 
@@ -75,7 +62,8 @@ function handleFrame(req: FrameRequest): void {
     quad,
     scores: analysis.scores,
     accepted: analysis.accepted,
-    flipped,
+    variant,
+    tried,
     sharpness: analysis.sharpness,
     info,
     nameCrop: req.wantNameCrop ? keep(crops?.name) : null,

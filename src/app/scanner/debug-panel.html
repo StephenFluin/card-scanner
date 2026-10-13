@@ -81,8 +81,13 @@
         </dd>
         <dt>focus</dt>
         <dd>{{ r.sharpness | number: '1.0-0' }} (Laplacian variance of the info line)</dd>
-        <dt>orientation</dt>
-        <dd>{{ r.flipped ? 'upside down (flipped)' : 'upright' }}</dd>
+        <dt>read via</dt>
+        <dd>
+          {{ r.variant ?? '—' }}
+          @for (t of r.tried; track t.variant) {
+            <span class="badge">{{ t.variant }}: {{ t.text || '∅' }} {{ t.confidence | number: '1.2-2' }}</span>
+          }
+        </dd>
       </dl>
       <div class="row">
         <canvas [appRgba]="r.debug?.preview" width="126" height="176" aria-label="Rectified card"></canvas>
@@ -213,7 +218,7 @@
             <td>{{ h.id }}</td>
             <td>{{ h.accepted ? 'yes' : 'no' }}</td>
             <td>{{ h.score ?? '' }}</td>
-            <td>{{ h.read ?? '' }}{{ h.flipped ? ' ↻' : '' }}</td>
+            <td>{{ h.read ?? '' }}{{ h.variant && h.variant !== 'normal' ? ' (' + h.variant + ')' : '' }}</td>
             <td>{{ h.confidence ?? '' }}</td>
             <td>{{ h.vote }}</td>
             <td>{{ h.timings.total }}</td>

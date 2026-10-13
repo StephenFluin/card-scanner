@@ -19,8 +19,8 @@ import { cardToImage, Quad, warpCardRegion } from '../src/app/vision/homography'
 import type { RGBAImage } from '../src/app/vision/image';
 import { LineModel, LineModelManifest } from '../src/app/vision/line-model';
 import { nameSimilarity } from '../src/app/vision/parse';
-import { analyzeFrame, cropRegion, defaultGuide, FrameCrops } from '../src/app/vision/pipeline';
-import { readInfoLine, readName } from '../src/app/vision/reader';
+import { analyzeFrame, cropRegion, defaultGuide, FrameCrops, readCard } from '../src/app/vision/pipeline';
+import { InfoRead, readInfoLine, readName } from '../src/app/vision/reader';
 import { TesseractEngine } from '../src/app/vision/tesseract-engine';
 import type { ScanLabel } from './download-scans';
 import { loadRGBA, saveGray, saveRGBA } from './lib/node-image';
@@ -83,6 +83,7 @@ async function main(): Promise<void> {
     const truthKey = cardKey(card.code, card.number);
     const img: RGBAImage = await loadRGBA(join(CACHE, 'scans', card.file));
     let crops: FrameCrops;
+    let info: InfoRead | null = null;
     let detail = '';
     let frame: RGBAImage | null = null;
     if (args.clean) {
@@ -119,6 +120,12 @@ async function main(): Promise<void> {
       byBg.set(params.background, bg);
       if (err < 1.5) s.cornerOk++;
       crops = analysis.crops;
+      if (model && analysis.quad) {
+        const read = readCard(model, synth.frame, analysis.alternatives.length ? analysis.alternatives : [analysis.quad], infoLine);
+        info = read.info;
+        crops = read.crops;
+        if (read.variant !== 'normal') detail += ` via=${read.variant}`;
+      }
       if (detectOnly) {
         if (!args.quiet || err >= 1.5) console.log(`${err < 1.5 ? 'ok  ' : 'POOR'} ${truthKey.padEnd(9)} ${detail}`);
         if (err >= 1.5 && args['save-failures']) await saveRGBA(synth.frame, join(outDir, `${i}-${truthKey}-frame.jpg`));
@@ -127,7 +134,7 @@ async function main(): Promise<void> {
     }
     if (!model) continue;
 
-    const info = readInfoLine(model, crops.infoLine);
+    info ??= readInfoLine(model, crops.infoLine);
     s.modelMs += info.ms;
     const exact = info.text === card.label;
     if (exact) s.exact++;

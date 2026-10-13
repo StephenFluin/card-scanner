@@ -61,13 +61,22 @@ export interface DetectScores {
   border: number;
   /** 0..1: how often the chosen line is the outer line of a "card edge + inner frame edge" pair. */
   pair: number;
+  /** 0..1: 1 when no other well-supported candidate line lies outside the chosen ones. */
+  outer: number;
   aspectRatio: number;
   borderStd: number;
+}
+
+export interface DetectCandidate {
+  quad: Quad;
+  scores: DetectScores;
 }
 
 export interface DetectResult {
   quad: Quad | null;
   scores: DetectScores | null;
+  /** The best few distinct quads, best first (includes `quad`). */
+  alternatives: DetectCandidate[];
   debug?: {
     points: Record<Side, EdgePoint[]>;
     candidates: Record<Side, EdgeLine[]>;
@@ -337,6 +346,26 @@ export function borderUniformity(img: RGBAImage, quad: Quad): number {
   return total / 4;
 }
 
+/**
+ * For every candidate line, 1 / (1 + number of well-supported candidates
+ * further out). Card content is inside the card edge, so a strong line
+ * outside the chosen one suggests we picked an internal line.
+ */
+function outerness(side: Side, lines: EdgeLine[], guide: Rect, tol: number): number[] {
+  const { t0, t1 } = expectedEdge(side, guide);
+  const tm = (t0 + t1) / 2;
+  const outerSign = side === 'left' || side === 'top' ? -1 : 1;
+  return lines.map((a) => {
+    let n = 0;
+    for (const b of lines) {
+      if (b === a || b.support < 0.35) continue;
+      const d = ((b.a * tm + b.b) - (a.a * tm + a.b)) * outerSign;
+      if (d > tol * 2) n++;
+    }
+    return 1 / (1 + n);
+  });
+}
+
 /** The silver border is ~3.3% of the card width; accept a generous range. */
 const BORDER_MIN = 0.018;
 const BORDER_MAX = 0.055;
@@ -383,11 +412,12 @@ export function detectCard(img: RGBAImage, opts: DetectOptions): DetectResult {
   }
   const debug = opts.debug ? { points, candidates } : undefined;
   if (SIDES.some((s) => candidates[s].length === 0)) {
-    return { quad: null, scores: null, debug };
+    return { quad: null, scores: null, alternatives: [], debug };
   }
 
+  const outer = Object.fromEntries(SIDES.map((s) => [s, outerness(s, candidates[s], guide, tol)])) as Record<Side, number[]>;
   const roles = Object.fromEntries(SIDES.map((s) => [s, pairRoles(s, candidates[s], guide)])) as Record<Side, number[]>;
-  let best: { quad: Quad; scores: DetectScores } | null = null;
+  const all: DetectCandidate[] = [];
   for (const [li, l] of candidates.left.entries()) {
     for (const [ri, r] of candidates.right.entries()) {
       for (const [ti, t] of candidates.top.entries()) {
@@ -404,15 +434,23 @@ export function detectCard(img: RGBAImage, opts: DetectOptions): DetectResult {
           const borderStd = borderUniformity(img, quad);
           const border = Math.max(0, 1 - borderStd / 30);
           const pair = (roles.left[li] + roles.right[ri] + roles.top[ti] + roles.bottom[bi] + 4) / 8;
-          const total = 0.45 * support + 0.15 * aspect + 0.1 * border + 0.3 * pair;
-          if (!best || total > best.scores.total) {
-            best = { quad, scores: { total, support, aspect, border, pair, aspectRatio, borderStd } };
-          }
+          const out = (outer.left[li] + outer.right[ri] + outer.top[ti] + outer.bottom[bi]) / 4;
+          const total = 0.4 * support + 0.2 * aspect + 0.05 * border + 0.2 * pair + 0.15 * out;
+          all.push({ quad, scores: { total, support, aspect, border, pair, outer: out, aspectRatio, borderStd } });
         }
       }
     }
   }
-  return { quad: best?.quad ?? null, scores: best?.scores ?? null, debug };
+  all.sort((a, b) => b.scores.total - a.scores.total);
+  // Keep a few clearly different hypotheses for the reader to try.
+  const alternatives: DetectCandidate[] = [];
+  const minDiff = guide.w * 0.015;
+  for (const c of all) {
+    if (alternatives.length >= 4) break;
+    if (alternatives.every((a) => Math.max(...a.quad.map((p, i) => dist(p, c.quad[i]))) > minDiff)) alternatives.push(c);
+  }
+  const best = alternatives[0] ?? null;
+  return { quad: best?.quad ?? null, scores: best?.scores ?? null, alternatives, debug };
 }
 
 /** Converts a side-local line into two image points spanning the image, for drawing. */

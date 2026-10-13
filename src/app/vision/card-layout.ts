@@ -19,7 +19,7 @@ export interface CardRegion {
 }
 
 /** Whole info line: the input of the info-line model (keep in sync with training/common.py). */
-export const INFO_LINE: CardRegion = { x: 0.02, y: 0.926, w: 0.37, h: 0.05 };
+export const INFO_LINE: CardRegion = { x: 0.02, y: 0.934, w: 0.37, h: 0.034 };
 
 /**
  * Name area. Pokémon names sit to the right of the stage badge near the top;
@@ -31,4 +31,4 @@ export const NAME_REGION: CardRegion = { x: 0.03, y: 0.022, w: 0.66, h: 0.11 };
 export const NAME_CARD_WIDTH = 840;
 
 /** Info-line model input size (keep in sync with training/common.py). */
-export const INFO_LINE_INPUT = { width: 176, height: 32 };
+export const INFO_LINE_INPUT = { width: 248, height: 32 };

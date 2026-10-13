@@ -1,6 +1,7 @@
 import type { DetectScores, EdgeLine, EdgePoint, Side } from '../vision/detect';
 import type { Quad } from '../vision/homography';
 import type { Rect, RGBAImage } from '../vision/image';
+import type { ReadVariant } from '../vision/pipeline';
 import type { InfoRead } from '../vision/reader';
 
 /** Messages between the scan controller (main thread) and scan.worker.ts. */
@@ -54,8 +55,10 @@ export interface FrameResult {
   quad: Quad | null;
   scores: DetectScores | null;
   accepted: boolean;
-  /** True if the card was read upside down. */
-  flipped: boolean;
+  /** Which hypothesis produced the read: upright/upside down, detected or border-expanded quad. */
+  variant: ReadVariant | null;
+  /** Every hypothesis tried this frame. */
+  tried: { variant: ReadVariant; text: string; confidence: number }[];
   sharpness: number;
   info: InfoRead | null;
   nameCrop: RGBAImage | null;

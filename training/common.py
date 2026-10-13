@@ -5,11 +5,11 @@ CHARSET = " /0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 NUM_CLASSES = len(CHARSET) + 1
 
 # INFO_LINE region in normalized card coordinates (x, y, w, h).
-INFO_LINE = (0.02, 0.926, 0.37, 0.05)
+INFO_LINE = (0.02, 0.934, 0.37, 0.034)
 
 # Model input size (grayscale).
 INPUT_H = 32
-INPUT_W = 176
+INPUT_W = 248
 
 # Physical card aspect (63mm x 88mm).
 CARD_ASPECT = 63 / 88

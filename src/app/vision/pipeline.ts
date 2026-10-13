@@ -1,6 +1,8 @@
 import { CardRegion, INFO_LINE, INFO_LINE_INPUT, NAME_CARD_WIDTH, NAME_REGION } from './card-layout';
 import { CARD_ASPECT, DetectResult, DetectScores, detectCard, EdgeLine, EdgePoint, Side } from './detect';
-import { cardToImage, Mat3, Quad, rotateQuad180, warpCardRegion } from './homography';
+import { cardToImage, expandQuad, Mat3, Quad, rotateQuad180, warpCardRegion } from './homography';
+import type { LineModel } from './line-model';
+import { InfoRead, readInfoLine } from './reader';
 import { crop, Rect, resizeArea, RGBAImage } from './image';
 import { sharpness } from './ocr-prep';
 
@@ -34,6 +36,8 @@ export interface FrameCrops {
 export interface FrameAnalysis {
   /** Card corners in frame pixels (reading order), or null. */
   quad: Quad | null;
+  /** Up to a few alternative quads (frame pixels), best first, for the reader to try. */
+  alternatives: Quad[];
   scores: DetectScores | null;
   /** True when the detection is good enough to OCR. */
   accepted: boolean;
@@ -101,9 +105,13 @@ export function analyzeFrame(frame: RGBAImage, opts: AnalyzeOptions): FrameAnaly
   const det: DetectResult = detectCard(small, { guide: guideSmall, debug: opts.debug });
   const toFrame = (p: { x: number; y: number }) => ({ x: p.x / scale + roi.x, y: p.y / scale + roi.y });
   let quad: Quad | null = det.quad ? (det.quad.map(toFrame) as unknown as Quad) : null;
+  const minScore = opts.minScore ?? DEFAULT_MIN_SCORE;
+  const alternatives = det.alternatives
+    .filter((a) => a.scores.total >= minScore - 0.1)
+    .map((a) => a.quad.map(toFrame) as unknown as Quad);
   const t1 = performance.now();
 
-  const accepted = !!quad && !!det.scores && det.scores.total >= (opts.minScore ?? DEFAULT_MIN_SCORE);
+  const accepted = !!quad && !!det.scores && det.scores.total >= minScore;
   let crops: FrameCrops | null = null;
   let preview: RGBAImage | null = null;
   let focus = 0;
@@ -144,6 +152,7 @@ export function analyzeFrame(frame: RGBAImage, opts: AnalyzeOptions): FrameAnaly
 
   return {
     quad,
+    alternatives,
     scores: det.scores,
     accepted,
     crops,
@@ -166,4 +175,64 @@ export function defaultGuide(width: number, height: number, fill = 0.78): Rect {
     h = w / CARD_ASPECT;
   }
   return { x: (width - w) / 2, y: (height - h) / 2, w, h };
+}
+
+/** Width of the silver border as a fraction of card width / height. */
+export const BORDER_FRACTION = { x: 0.04, y: 0.029 };
+
+export type ReadVariant =
+  | 'normal'
+  | 'flipped'
+  | 'alt1'
+  | 'alt1-flipped'
+  | 'alt2'
+  | 'alt2-flipped'
+  | 'expanded'
+  | 'expanded-flipped';
+
+function isQuadList(q: Quad | readonly Quad[]): q is readonly Quad[] {
+  return Array.isArray(q[0]);
+}
+
+export interface CardRead {
+  info: InfoRead;
+  quad: Quad;
+  crops: FrameCrops;
+  variant: ReadVariant;
+  /** Every variant tried, with its result, in order. */
+  tried: { variant: ReadVariant; text: string; confidence: number }[];
+}
+
+const GOOD_READ = 0.5;
+
+/**
+ * Reads the info line of a detected card, trying fallbacks until the model is
+ * confident:
+ *  - the card may be upside down (read the other end);
+ *  - on low-contrast backgrounds the detector may have found the inner frame
+ *    instead of the card edge (grow the quad by the border width).
+ * The model's confidence is the referee between hypotheses.
+ */
+export function readCard(model: LineModel, frame: RGBAImage, quads: Quad | readonly Quad[], infoLine?: InfoLineSpec): CardRead {
+  const spec = infoLine ?? { region: model.region, ...model.inputSize };
+  const list: readonly Quad[] = isQuadList(quads) ? quads : [quads];
+  const hypotheses: [ReadVariant, Quad][] = [];
+  list.slice(0, 3).forEach((q, i) => {
+    hypotheses.push([i === 0 ? 'normal' : `alt${i}` as ReadVariant, q]);
+    hypotheses.push([i === 0 ? 'flipped' : `alt${i}-flipped` as ReadVariant, rotateQuad180(q)]);
+  });
+  const expanded = expandQuad(list[0], BORDER_FRACTION.x, BORDER_FRACTION.y);
+  hypotheses.push(['expanded', expanded], ['expanded-flipped', rotateQuad180(expanded)]);
+  let best: CardRead | null = null;
+  const tried: CardRead['tried'] = [];
+  for (const [variant, q] of hypotheses) {
+    const crops = cropsForQuad(frame, q, spec);
+    const info = readInfoLine(model, crops.infoLine);
+    tried.push({ variant, text: info.text, confidence: info.confidence });
+    const score = info.parsed ? info.confidence : -1 + info.confidence;
+    const bestScore = best ? (best.info.parsed ? best.info.confidence : -1 + best.info.confidence) : -Infinity;
+    if (score > bestScore) best = { info, quad: q, crops, variant, tried };
+    if (info.parsed && info.confidence >= GOOD_READ) break;
+  }
+  return best!;
 }

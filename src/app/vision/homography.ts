@@ -132,3 +132,17 @@ export function warpCardRegion(
   }
   return out;
 }
+
+/**
+ * Grows a quad outward by fractions of the card's width (dx) and height (dy),
+ * measured in the card's own (perspective-corrected) coordinates.
+ */
+export function expandQuad(q: Quad, dx: number, dy: number): Quad {
+  const H = cardToImage(q);
+  return [
+    applyHomography(H, { x: -dx, y: -dy }),
+    applyHomography(H, { x: 1 + dx, y: -dy }),
+    applyHomography(H, { x: 1 + dx, y: 1 + dy }),
+    applyHomography(H, { x: -dx, y: 1 + dy }),
+  ];
+}

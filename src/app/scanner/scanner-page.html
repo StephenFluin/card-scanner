@@ -1,0 +1,126 @@
+<h1 class="visually-hidden">Scan cards</h1>
+
+<div class="layout">
+  <div class="camera-col">
+    <div class="viewport" [style.aspect-ratio]="aspect()" [style.width]="viewportWidth()">
+      <video #video playsinline muted autoplay aria-label="Camera preview" [hidden]="sourceKind() === 'image'"></video>
+      @if (photoUrl(); as url) {
+        <img class="photo" [src]="url" alt="Photo being analyzed" />
+      }
+      <app-scan-overlay
+        [result]="scan.result()"
+        [size]="frameSize()"
+        [guide]="guide()"
+        [status]="scan.status()"
+        [debug]="scan.debug()"
+      />
+      @if (sourceKind() === 'camera' && camera.state() !== 'live') {
+        <div class="camera-message">
+          @switch (camera.state()) {
+            @case ('requesting') {
+              <p>Waiting for camera permission…</p>
+            }
+            @case ('idle') {
+              <p>Camera is off.</p>
+              <button type="button" class="primary" (click)="useCamera()">Start camera</button>
+            }
+            @default {
+              <p>{{ camera.error() ?? 'The camera is not available.' }}</p>
+              <button type="button" class="primary" (click)="useCamera()">Try again</button>
+            }
+          }
+        </div>
+      }
+    </div>
+
+    <p class="status" [class]="'status status-' + scan.status()" role="status" aria-live="polite">
+      {{ scan.statusDetail() }}
+    </p>
+
+    <div class="row toolbar" role="toolbar" aria-label="Scanner controls">
+      <button type="button" (click)="scan.togglePause()" [attr.aria-pressed]="scan.paused()">
+        {{ scan.paused() ? 'Resume' : 'Pause' }}
+      </button>
+      @if (camera.info()?.torch) {
+        <button type="button" (click)="camera.setTorch(!camera.torchOn())" [attr.aria-pressed]="camera.torchOn()">Light</button>
+      }
+      @if (camera.state() === 'live') {
+        <button type="button" (click)="camera.refocus()">Refocus</button>
+      }
+      @if (camera.devices().length > 1) {
+        <label>
+          <span class="visually-hidden">Camera</span>
+          <select (change)="onCameraChange($event)">
+            @for (d of camera.devices(); track d.deviceId; let i = $index) {
+              <option [value]="d.deviceId" [selected]="d.label === camera.info()?.label">{{ d.label || 'Camera ' + (i + 1) }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (camera.info()?.zoom; as z) {
+        <label>
+          Zoom
+          <input type="range" [min]="z.min" [max]="z.max" [step]="z.step" [value]="z.value" (input)="onZoom($event)" />
+        </label>
+      }
+      <button type="button" (click)="toggleDebug()" [attr.aria-pressed]="scan.debug()">Debug</button>
+    </div>
+  </div>
+
+  <aside class="side-col" aria-label="Scanned cards">
+    @if (last(); as c) {
+      <section class="panel capture" aria-labelledby="last-capture">
+        <h2 id="last-capture">Last scanned</h2>
+        <div class="row capture-row">
+          @if (c.imageUrl) {
+            <img class="card-thumb big" [src]="c.imageUrl" [alt]="c.identity.name ?? c.identity.key" width="96" height="134" />
+          }
+          <div>
+            <p class="code">
+              <span class="card-code">{{ c.identity.setCode }} {{ c.identity.number }}{{ c.identity.total ? '/' + c.identity.total : '' }}</span>
+            </p>
+            <p class="name">{{ c.identity.name ?? 'Unknown name' }}</p>
+            <p class="muted">{{ c.setName ?? 'Set not in catalog yet' }}</p>
+            <p class="muted">You own {{ collection.count(c.identity.key) }} · {{ c.at | date: 'shortTime' }}</p>
+            @if (!c.known) {
+              <span class="badge warn">Not in catalog: read from the card</span>
+            }
+          </div>
+        </div>
+        <div class="row">
+          <button type="button" (click)="addAnother(c)">+1 copy</button>
+          <button type="button" class="danger" (click)="undo(c)">Undo</button>
+        </div>
+      </section>
+    } @else {
+      <section class="panel tips" aria-labelledby="tips">
+        <h2 id="tips">How to scan</h2>
+        <ul>
+          <li>Lay the card on a <strong>dark, plain surface</strong>: the silver border needs contrast.</li>
+          <li>Fill the frame with the card, upright, and hold steady for a moment.</li>
+          <li>Avoid glare on the bottom-left corner, where the set code and number are printed.</li>
+          <li>Each card is added once. Take it out of the frame before scanning the next one.</li>
+        </ul>
+      </section>
+    }
+
+    @if (recent().length) {
+      <section class="panel" aria-labelledby="recent">
+        <h2 id="recent">Earlier this session</h2>
+        <ul class="recent">
+          @for (c of recent(); track c.id) {
+            <li>
+              <span class="card-code">{{ c.identity.setCode }} {{ c.identity.number }}</span>
+              {{ c.identity.name ?? '' }}
+              <button type="button" class="danger small" (click)="undo(c)" [attr.aria-label]="'Undo ' + c.identity.key">Undo</button>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </aside>
+</div>
+
+@if (scan.debug()) {
+  <app-debug-panel (sourceRequest)="onSourceRequest($event)" />
+}
