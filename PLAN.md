@@ -5,7 +5,7 @@ Last updated 2026-10-13.
 ## How it works
 - **Identity = what's printed on the card**: set code + collector number (+ printed total) from the bottom-left info line (`G [SVI EN] 001/198 ●`). Key format `SVI-001`. New sets work without anyone's data.
 - **Detection** (`src/app/vision/detect.ts`): edge-line fitting inside an on-screen guide, scored on line support, aspect ratio, border-pair geometry and containment. It returns its top few distinct quads.
-- **Reading** (`src/app/vision/pipeline.ts` `readCard`): our own info-line model (`InfoLineNet`, `training/`) reads the line. It tries hypotheses in order (best quad, alternatives, upside-down, border-expanded for low-contrast backgrounds) until the model is confident. The per-frame budget adapts to device speed.
+- **Reading** (`src/app/vision/pipeline.ts` `readCard`): our own info-line model (`InfoLineNet`, `training/`) reads the line. It tries hypotheses most-likely first (detected quad, border-expanded for low-contrast backgrounds, runner-up quad, upside-down, …), starting with whatever won on the previous frame, until the model is confident. The per-frame budget adapts to device speed.
 - **Multi-frame fusion** (`fusion.ts`): 2 matching reads confirm a catalog card; 3 confirm a card not in the catalog.
 - **Catalog** (`public/catalog.json`, TCGdex): optional; corrects near-misses and supplies names/images.
 - **Tesseract** reads the name only for cards not in the catalog.
