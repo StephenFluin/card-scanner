@@ -45,3 +45,6 @@ Thumbs.db
 /.cache
 *.traineddata
 /public/debug-samples
+firebase-debug.log
+firebase-debug.*.log
+.firebase/

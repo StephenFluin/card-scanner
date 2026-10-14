@@ -59,7 +59,7 @@
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
-              "allowedHosts": []
+              "allowedHosts": ["scan.fluin.io", "*.hosted.app"]
             },
             "ssr": {
               "entry": "src/server.ts"

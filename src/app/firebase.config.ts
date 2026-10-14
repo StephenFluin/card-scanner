@@ -1,25 +1,26 @@
 import type { FirebaseOptions } from 'firebase/app';
 
 /**
- * Firebase web app config. Get it from the Firebase console:
- * Project settings -> General -> Your apps -> Web app -> SDK setup and configuration.
+ * Firebase web app config (project card-scanner-234235). These values are
+ * public identifiers, not secrets: access is enforced by database.rules.json
+ * and Authentication's authorized domains.
  *
- * Also enable:
- *  - Authentication -> Sign-in method -> Google
- *  - Realtime Database (then deploy database.rules.json: `firebase deploy --only database`)
- *  - Authentication -> Settings -> Authorized domains: add any LAN host you test from
+ * Refresh with: firebase apps:sdkconfig WEB <appId>
+ * Database rules: firebase deploy --only database
+ * Testing from another host (e.g. a phone on the LAN)? Add it under
+ * Authentication -> Settings -> Authorized domains.
  *
- * While `apiKey` is empty the app runs in local-only mode (collection kept in
+ * With an empty `apiKey` the app runs in local-only mode (collection kept in
  * this browser's localStorage, sign-in hidden).
  */
 export const firebaseConfig: FirebaseOptions = {
-  apiKey: '',
-  authDomain: '',
-  databaseURL: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: '',
+  apiKey: 'AIzaSyB9WFg_YltlCMBSHIdzxfbviT2--J-RhsU',
+  authDomain: 'card-scanner-234235.firebaseapp.com',
+  databaseURL: 'https://card-scanner-234235-default-rtdb.firebaseio.com',
+  projectId: 'card-scanner-234235',
+  storageBucket: 'card-scanner-234235.firebasestorage.app',
+  messagingSenderId: '1031793483667',
+  appId: '1:1031793483667:web:303cc713300a21de089266',
 };
 
 export const firebaseConfigured = !!firebaseConfig.apiKey && !!firebaseConfig.databaseURL;
