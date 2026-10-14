@@ -4,7 +4,8 @@ import type { InfoRead } from './reader';
 /**
  * Combines info-line reads across frames. One frame can be misread, so a card
  * is only confirmed once the evidence agrees:
- *  - known card (set + number in the catalog): `votesKnown` matching frames,
+ *  - known card (card in the catalog, or its set in the catalog with a
+ *    matching printed total): `votesKnown` matching frames,
  *    or a single frame whose set code, printed total, number and name all
  *    agree with the catalog;
  *  - unknown set or number (e.g. a brand new set): `votesUnknown` matching
@@ -40,7 +41,7 @@ export interface FusionCandidate {
   identity: CardIdentity;
   votes: number;
   resolution: Resolution | null;
-  /** True when set and number exist in the catalog. */
+  /** True when the catalog vouches for the card (card listed, or set listed with matching printed total). */
   known: boolean;
 }
 
@@ -126,7 +127,7 @@ export class ReadFusion {
       byKey.set(v.key, list);
     }
     const tally = [...byKey.entries()]
-      .map(([key, vs]) => ({ key, votes: vs.length, known: !!vs[vs.length - 1].resolution?.catalogName }))
+      .map(([key, vs]) => ({ key, votes: vs.length, known: vouched(vs[vs.length - 1]) }))
       .sort((a, b) => b.votes - a.votes);
     if (tally.length === 0) {
       return { status: 'idle', best: null, tally, reason: 'no confident read yet' };
@@ -142,7 +143,7 @@ export class ReadFusion {
       total: last.total,
       name: catalogName ?? mostCommon(this.names.get(top.key) ?? []),
     };
-    const best: FusionCandidate = { identity, votes: top.votes, resolution: last.resolution, known: !!catalogName };
+    const best: FusionCandidate = { identity, votes: top.votes, resolution: last.resolution, known: vouched(last) };
 
     const runnerUp = tally[1]?.votes ?? 0;
     if (runnerUp >= top.votes) {
@@ -162,6 +163,16 @@ export class ReadFusion {
     }
     return { status: 'reading', best, tally, reason: `not in catalog, ${top.votes}/${this.cfg.votesUnknown} reads` };
   }
+}
+
+/**
+ * Whether the catalog vouches for a read: the card itself is listed, or its set
+ * is listed (e.g. added by hand before release) and the printed total matches.
+ */
+function vouched(v: Vote): boolean {
+  const res = v.resolution;
+  if (res?.catalogName) return true;
+  return !!res?.set && !!v.total && res.set.official === parseInt(v.total, 10);
 }
 
 function mostCommon(values: string[]): string | null {

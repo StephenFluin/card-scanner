@@ -1,0 +1,14 @@
+{
+  "$comment": "Sets added by hand, typically before release. Only `code`, `name`, `series`, `releaseDate` and `official` (the printed number after the slash) are needed for recognition; card names are read from the card until the set appears in the API, which then takes precedence.",
+  "sets": [
+    {
+      "id": "dlr",
+      "code": "DLR",
+      "name": "Delta Reign",
+      "series": "me",
+      "releaseDate": "2026-11-06",
+      "official": 103,
+      "note": "Code DLR confirmed. Main set numbered /103 per pre-release listings (e.g. 018/103; secret rares above 103)."
+    }
+  ]
+}

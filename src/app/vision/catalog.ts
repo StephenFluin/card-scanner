@@ -8,7 +8,7 @@ import { levenshtein, nameSimilarity } from './parse';
  * still recognised and saved.
  */
 export interface CatalogSet {
-  /** Data source id (e.g. TCGdex "sv01"); only used to build image URLs. */
+  /** Internal set id (e.g. "sv01"); only used to build image URLs. */
   id: string;
   /** Printed set code, e.g. "SVI". */
   code: string;
@@ -27,7 +27,6 @@ export interface CatalogSet {
 
 export interface Catalog {
   generatedAt: string;
-  source: string;
   sets: CatalogSet[];
 }
 

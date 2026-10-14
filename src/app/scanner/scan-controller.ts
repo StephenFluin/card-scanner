@@ -242,8 +242,8 @@ export class ScanController implements OnDestroy {
     if (this.nameInFlight) return false;
     if (this.settings().alwaysReadNames) return true;
     const best = this.fusion()?.best;
-    // Names are only needed for cards the catalog doesn't know.
-    return !!best && !best.known && !this.namedKeys.has(best.identity.key);
+    // Names are only needed when the catalog has no name for the card.
+    return !!best && !best.resolution?.catalogName && !this.namedKeys.has(best.identity.key);
   }
 
   private handle(r: FrameResult, keepFrame: boolean): void {
