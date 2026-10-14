@@ -60,7 +60,7 @@ For more information on using the Angular CLI, including detailed command refere
 
 ## License
 
-Copyright (C) 2026 Stephen Fluin
+Copyright Stephen Fluin
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU Affero General Public License as published by the Free
