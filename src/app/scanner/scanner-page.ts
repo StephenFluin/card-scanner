@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { AuthService } from '../services/auth.service';
 import { CollectionService } from '../services/collection.service';
+import { ContributionService } from '../services/contribution.service';
 import { Logger } from '../services/logger.service';
 import { CameraService } from './camera.service';
 import { DebugPanel, SourceRequest } from './debug-panel';
@@ -21,6 +23,8 @@ export class ScannerPage {
   protected readonly scan = inject(ScanController);
   protected readonly camera = inject(CameraService);
   protected readonly collection = inject(CollectionService);
+  protected readonly contribution = inject(ContributionService);
+  protected readonly auth = inject(AuthService);
   private readonly logger = inject(Logger);
   private readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('video');
 
@@ -155,6 +159,10 @@ export class ScannerPage {
 
   protected undo(c: Capture): void {
     void this.scan.undo(c);
+  }
+
+  protected wrongCard(c: Capture): void {
+    void this.scan.wrongCard(c);
   }
 
   protected addAnother(c: Capture): void {

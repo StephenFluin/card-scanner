@@ -6,6 +6,9 @@ import type { InfoRead } from '../vision/reader';
 
 /** Messages between the scan controller (main thread) and scan.worker.ts. */
 
+/** Width of contributed card images; the info line is then ~model resolution. */
+export const CARD_IMAGE_WIDTH = 720;
+
 export interface InitRequest {
   type: 'init';
   /** Absolute URL of the info-line model manifest. */
@@ -20,6 +23,8 @@ export interface FrameRequest {
   guide: Rect;
   /** Return the rectified name crop (for Tesseract on the main thread). */
   wantNameCrop: boolean;
+  /** Return a straightened image of the whole card (contributed for training). */
+  wantCardImage: boolean;
   /** Return detection internals and intermediate images. */
   debug: boolean;
   /** Also return the full frame pixels (for debug snapshots). */
@@ -62,6 +67,8 @@ export interface FrameResult {
   sharpness: number;
   info: InfoRead | null;
   nameCrop: RGBAImage | null;
+  /** Straightened card (CARD_IMAGE_WIDTH wide), when requested and a card was read. */
+  cardImage: RGBAImage | null;
   timings: { capture: number; detect: number; warp: number; model: number; total: number };
   debug?: FrameDebug;
   frame?: RGBAImage;

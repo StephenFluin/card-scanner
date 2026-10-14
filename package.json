@@ -12,7 +12,9 @@
     "scans": "tsx scripts/download-scans.ts",
     "eval": "tsx scripts/eval.ts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json",
-    "start:phone": "ng serve --ssl --host 0.0.0.0 --allowed-hosts"
+    "start:phone": "ng serve --ssl --host 0.0.0.0 --allowed-hosts",
+    "learn-catalog": "tsx scripts/learn-catalog.ts",
+    "test:rules": "firebase emulators:exec --only database,storage --project card-scanner-rules-test \"tsx scripts/test-rules.ts\""
   },
   "private": true,
   "packageManager": "npm@11.19.0",
@@ -35,6 +37,7 @@
     "@angular/build": "^22.2.2",
     "@angular/cli": "^22.2.2",
     "@angular/compiler-cli": "^22.2.0",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/express": "^5.0.1",
     "@types/node": "^22.12.0",
     "prettier": "^3.8.1",

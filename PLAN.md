@@ -22,7 +22,13 @@ Last updated 2026-10-13.
 3. When a new set is released: `npm run catalog` (names/images), and optionally `npm run scans` plus a retrain (training/README.md) once scans exist. Scanning works before either.
 4. If real-world detection struggles: a learned edge/corner detector trained on synthetic frames, or a printed dark scanning mat.
 
+## Learning from scans
+- Signed-in users (unless they turn off "Share scans to improve recognition") contribute one observation per card (`observations/{SET}/{NNN}/{uid}`: read text, printed total, OCR'd name, confidence) plus one straightened card image in Storage (`scans/{uid}/…`). **Wrong card** marks the observation rejected.
+- `npm run learn-catalog` pulls observations with your Firebase CLI login and writes the consensus to `scripts/learned-sets.json` (default ≥3 users, ≥90% confidence-weighted agreement; cards ≥20% "wrong" are dropped). New set codes need `"approved": true` and a name before `npm run catalog` adds them; learned names only fill gaps (API > `extra-sets.json` > learned).
+- Images are for retraining on real photos: see `training/README.md`.
+- Security rules: `database.rules.json`, `storage.rules`; tests: `npm run test:rules` (emulators, needs Java).
+
 ## Commands
-- `npm run catalog` · `npm run scans` · `npm run eval -- --n 150 [--sets PBL,DRI] [--fusion 8] [--no-catalog] [--detect-only]`
+- `npm run catalog` · `npm run learn-catalog` · `npm run test:rules` · `npm run scans` · `npm run eval -- --n 150 [--sets PBL,DRI] [--fusion 8] [--no-catalog] [--detect-only]`
 - Training pipeline: see `training/README.md`.
 - Dev server: `npx ng serve`; reproduce with `http://localhost:4200/?image=<url>` or `?video=<url>` (put local samples in `public/debug-samples/`, which is gitignored).

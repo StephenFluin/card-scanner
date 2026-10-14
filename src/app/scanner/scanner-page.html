@@ -89,7 +89,8 @@
         </div>
         <div class="row">
           <button type="button" (click)="addAnother(c)">+1 copy</button>
-          <button type="button" class="danger" (click)="undo(c)">Undo</button>
+          <button type="button" (click)="undo(c)">Undo</button>
+          <button type="button" class="danger" (click)="wrongCard(c)">Wrong card</button>
         </div>
       </section>
     } @else {
@@ -101,6 +102,16 @@
           <li>Avoid glare on the bottom-left corner, where the set code and number are printed.</li>
           <li>Each card is added once. Take it out of the frame before scanning the next one.</li>
         </ul>
+      </section>
+    }
+
+    @if (auth.user()) {
+      <section class="panel share">
+        <label>
+          <input type="checkbox" [checked]="contribution.enabled()" (change)="contribution.enabled.set($any($event.target).checked)" />
+          Share scans to improve recognition
+        </label>
+        <p class="muted">Sends what was read and a straightened photo of each scanned card, used to fill in new sets and train the reader.</p>
       </section>
     }
 

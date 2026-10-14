@@ -4,8 +4,24 @@
     {
       "name": "dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["ng", "serve", "--port", "4200"],
+      "runtimeArgs": [
+        "ng",
+        "serve",
+        "--port",
+        "4200"
+      ],
       "port": 4200
+    },
+    {
+      "name": "dev-4300",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "ng",
+        "serve",
+        "--port",
+        "4300"
+      ],
+      "port": 4300
     }
   ]
 }

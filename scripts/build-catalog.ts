@@ -5,13 +5,17 @@
  *   npm run catalog
  *
  * Set and card lists are fetched from a public card API; sets it doesn't list
- * yet (e.g. before release) can be added by hand in scripts/extra-sets.json.
+ * yet (e.g. before release) can be added by hand in scripts/extra-sets.json,
+ * and scripts/learned-sets.json (from `npm run learn-catalog`) fills in what
+ * users' scans agree on. Priority: API, then extra-sets, then learned.
  * Only silver-border era series are included. Sets missing from the catalog
  * still scan fine; they just show the name read from the card.
  */
+import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Catalog, CatalogSet } from '../src/app/vision/catalog';
+import type { LearnedSets } from './learn-catalog';
 
 const API = 'https://api.tcgdex.net/v2/en';
 const SERIES = ['sv', 'me'];
@@ -85,6 +89,30 @@ async function main(): Promise<void> {
     }
     sets.push({ id: e.id, code: e.code, name: e.name, series: e.series, releaseDate: e.releaseDate, official: e.official, total: e.official, imageBase: null, cards: {} });
     console.log(`${e.code.padEnd(4)} ${e.id.padEnd(8)}    - cards  ${e.name} (added by hand)`);
+  }
+  const learnedPath = join(import.meta.dirname, 'learned-sets.json');
+  if (existsSync(learnedPath)) {
+    const learned = JSON.parse(await readFile(learnedPath, 'utf8')) as LearnedSets;
+    for (const l of learned.sets) {
+      let set = sets.find((s) => s.code === l.code);
+      if (!set) {
+        if (!l.approved || !l.official) {
+          console.log(`${l.code.padEnd(4)} learned from scans but not approved yet (scripts/learned-sets.json)`);
+          continue;
+        }
+        set = { id: l.code.toLowerCase(), code: l.code, name: l.name ?? l.code, series: '', releaseDate: '', official: l.official, total: l.official, imageBase: null, cards: {} };
+        sets.push(set);
+        console.log(`${l.code.padEnd(4)} ${set.id.padEnd(8)}    - cards  ${set.name} (learned from scans)`);
+      }
+      let filled = 0;
+      for (const [number, c] of Object.entries(l.cards)) {
+        if (c.name && !(number in set.cards)) {
+          set.cards[number] = c.name;
+          filled++;
+        }
+      }
+      if (filled) console.log(`${l.code.padEnd(4)} +${filled} card names learned from scans`);
+    }
   }
   sets.sort((a, b) => b.releaseDate.localeCompare(a.releaseDate));
   const catalog: Catalog = { generatedAt: new Date().toISOString(), sets };

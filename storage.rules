@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Scan images contributed for training: each user can upload JPEGs under
+// scans/{their uid}/ and read or delete only their own. Nobody else can read
+// them; the training export uses admin credentials.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /scans/{uid}/{allPaths=**} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+  }
+}

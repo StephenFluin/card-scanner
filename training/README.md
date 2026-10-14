@@ -56,3 +56,30 @@ samples); `train.py` keeps them on the GPU, so an RTX 5090 trains at ~20 ms/step
 `common.py` (`INFO_LINE`, `INPUT_H`, `INPUT_W`, `CHARSET`) ↔
 `src/app/vision/card-layout.ts`. The app reads region and size from the exported
 manifest, so a re-export is enough after changing them.
+
+## Real-world training images (contributed scans)
+
+When a signed-in user captures a card (and "Share scans to improve recognition"
+is on), the app uploads one straightened image of the card to Firebase Storage:
+
+```
+gs://card-scanner-234235.firebasestorage.app/scans/{uid}/{SET-NNN}/{timestamp}.jpg
+```
+
+Each image is 720 px wide (the info line is then about model-input resolution)
+and carries metadata: `label` (what the model read, e.g. `DLR 018/103`), `key`,
+`model` (model version) and `confidence`. The matching observation at
+`observations/{SET}/{NNN}/{uid}` records `rejected: true` if the user pressed
+**Wrong card**; exclude those images, or relabel them, before training.
+
+Only the owning user can read their images; pull them with project-owner
+credentials, e.g.:
+
+```bash
+gcloud auth login
+gcloud storage cp -r gs://card-scanner-234235.firebasestorage.app/scans ../.cache/real-scans
+```
+
+These are real photos of straightened cards, so they can be fed through the
+same rendering as the official scans (`dataset.py` crops the info line from a
+full-card image) to fine-tune on real cameras, lighting and sleeves.

@@ -3,11 +3,13 @@
  * Runs the per-frame vision pipeline off the main thread:
  * find card edges -> rectify -> read the info line with our model.
  */
+import { CARD_ASPECT } from '../vision/detect';
+import { cardToImage, warpCardRegion } from '../vision/homography';
 import type { RGBAImage } from '../vision/image';
 import { LineModel } from '../vision/line-model';
 import { analyzeFrame, readCard, ReadVariant } from '../vision/pipeline';
 import type { InfoRead } from '../vision/reader';
-import type { FrameRequest, FrameResult, WorkerRequest, WorkerResponse } from './scan-protocol';
+import { CARD_IMAGE_WIDTH, FrameRequest, FrameResult, WorkerRequest, WorkerResponse } from './scan-protocol';
 
 let model: LineModel | null = null;
 /** Running average of one model run (ms), to size the per-frame hypothesis budget. */
@@ -76,6 +78,10 @@ function handleFrame(req: FrameRequest): void {
     sharpness: analysis.sharpness,
     info,
     nameCrop: req.wantNameCrop ? keep(crops?.name) : null,
+    cardImage:
+      req.wantCardImage && quad && info?.parsed
+        ? keep(warpCardRegion(frame, cardToImage(quad), { x: 0, y: 0, w: 1, h: 1 }, CARD_IMAGE_WIDTH, Math.round(CARD_IMAGE_WIDTH / CARD_ASPECT), 2))
+        : null,
     timings: {
       capture: t1 - t0,
       detect: analysis.timings.detect,

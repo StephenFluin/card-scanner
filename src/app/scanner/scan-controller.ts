@@ -1,6 +1,7 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { CatalogService } from '../services/catalog.service';
 import { CollectionService } from '../services/collection.service';
+import { ContributionService, Observation } from '../services/contribution.service';
 import { Logger } from '../services/logger.service';
 import type { CardIdentity } from '../vision/catalog';
 import { DEFAULT_FUSION, FusionState, ReadFusion } from '../vision/fusion';
@@ -74,6 +75,7 @@ export class ScanController implements OnDestroy {
   private readonly logger = inject(Logger);
   private readonly catalog = inject(CatalogService);
   private readonly collection = inject(CollectionService);
+  private readonly contribution = inject(ContributionService);
 
   readonly status = signal<ScanStatus>('loading');
   readonly statusDetail = signal<string>('Loading recognition model…');
@@ -106,6 +108,8 @@ export class ScanController implements OnDestroy {
   private namedKeys = new Set<string>();
   private wantSnapshot = false;
   private tesseract: Promise<import('../vision/tesseract-engine').TesseractEngine> | null = null;
+  /** A capture waiting for a card image (taken from the next frames while the card is in view). */
+  private pendingContribution: { observation: Observation; framesLeft: number } | null = null;
   private captureSeq = 0;
 
   constructor() {
@@ -113,6 +117,7 @@ export class ScanController implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.flushContribution();
     this.stop();
     this.worker?.terminate();
     void this.tesseract?.then((t) => t.terminate());
@@ -153,6 +158,16 @@ export class ScanController implements OnDestroy {
     await this.collection.decrement(capture.identity.key);
     this.captures.update((list) => list.filter((c) => c.id !== capture.id));
     this.logger.info('capture', `undo ${capture.identity.key}`);
+  }
+
+  /**
+   * The capture was the wrong card: remove it and record the misread, which
+   * counts against it when the catalog is learned from scans.
+   */
+  async wrongCard(capture: Capture): Promise<void> {
+    await this.undo(capture);
+    await this.contribution.reject(capture.identity);
+    this.logger.warn('capture', `user reported ${capture.identity.key} as the wrong card`);
   }
 
   /** Adds another copy of a captured card without rescanning it. */
@@ -198,7 +213,8 @@ export class ScanController implements OnDestroy {
 
   private send(bitmap: ImageBitmap, guide: Rect, wantNameCrop: boolean, keepFrame: boolean): Promise<FrameResult | null> {
     const id = this.nextId++;
-    const req: FrameRequest = { type: 'frame', id, bitmap, guide, wantNameCrop, debug: this.debug() || keepFrame, keepFrame };
+    const wantCardImage = !!this.pendingContribution;
+    const req: FrameRequest = { type: 'frame', id, bitmap, guide, wantNameCrop, wantCardImage, debug: this.debug() || keepFrame, keepFrame };
     return new Promise((resolve) => {
       this.pending.set(id, resolve);
       this.worker!.postMessage(req, [bitmap]);
@@ -254,6 +270,7 @@ export class ScanController implements OnDestroy {
     }
     this.lastFrameAt = now;
     this.result.set(r);
+    this.collectCardImage(r);
     this.fuser.setCatalog(this.catalog.index());
 
     let fusion: FusionState | null = null;
@@ -330,6 +347,7 @@ export class ScanController implements OnDestroy {
     this.lastCapturedKey = key;
     this.fuser.reset();
     this.captures.update((list) => [capture, ...list].slice(0, 50));
+    this.queueContribution(capture, f);
     void this.collection.add(best.identity);
     navigator.vibrate?.(60);
     this.status.set('captured');
@@ -339,6 +357,46 @@ export class ScanController implements OnDestroy {
       tally: f.tally,
       notes: best.resolution?.notes,
     });
+  }
+
+  /** Starts collecting what this capture tells us, for the learned catalog and training. */
+  private queueContribution(capture: Capture, f: FusionState): void {
+    this.flushContribution();
+    if (!this.contribution.active()) return;
+    const read = this.result()?.info;
+    const fromCatalog = !!f.best?.resolution?.catalogName;
+    this.pendingContribution = {
+      framesLeft: 10,
+      observation: {
+        identity: capture.identity,
+        text: read?.text ?? `${capture.identity.setCode} ${capture.identity.number}`,
+        confidence: read?.confidence ?? 0,
+        nameRead: fromCatalog ? null : capture.identity.name,
+        nameConfidence: fromCatalog ? 0 : (this.lastName()?.confidence ?? 0),
+        model: this.model()?.createdAt ?? null,
+        image: null,
+      },
+    };
+  }
+
+  /** Attaches a card image from a frame that still shows the captured card. */
+  private collectCardImage(r: FrameResult): void {
+    const pending = this.pendingContribution;
+    if (!pending) return;
+    const key = pending.observation.identity;
+    const sameCard = r.info?.parsed?.setCode === key.setCode && r.info.parsed.number === key.number;
+    if (r.cardImage && sameCard) {
+      pending.observation.image = r.cardImage;
+      this.flushContribution();
+    } else if (--pending.framesLeft <= 0) {
+      this.flushContribution();
+    }
+  }
+
+  private flushContribution(): void {
+    const pending = this.pendingContribution;
+    this.pendingContribution = null;
+    if (pending) void this.contribution.record(pending.observation);
   }
 
   private async readName(crop: RGBAImage): Promise<void> {
