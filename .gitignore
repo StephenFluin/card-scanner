@@ -49,3 +49,10 @@ firebase-debug.log
 firebase-debug.*.log
 .firebase/
 *-debug.log
+
+# Local env, OS, editor-agent and emulator files
+.env
+.env.*
+.claude/settings.local.json
+firebase-export-*/
+!.env.example
