@@ -14,7 +14,10 @@
     "typecheck:scripts": "tsc -p tsconfig.scripts.json",
     "start:phone": "ng serve --ssl --host 0.0.0.0 --allowed-hosts",
     "learn-catalog": "tsx scripts/learn-catalog.ts",
-    "test:rules": "firebase emulators:exec --only database,storage --project card-scanner-rules-test \"tsx scripts/test-rules.ts\""
+    "test:rules": "firebase emulators:exec --only database,storage --project card-scanner-rules-test \"tsx scripts/test-rules.ts\"",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "private": true,
   "packageManager": "npm@11.19.0",
@@ -37,12 +40,16 @@
     "@angular/build": "^22.2.2",
     "@angular/cli": "^22.2.2",
     "@angular/compiler-cli": "^22.2.0",
+    "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^6.0.0",
     "@types/express": "^5.0.1",
     "@types/node": "^22.12.0",
-    "prettier": "^3.8.1",
+    "angular-eslint": "^22.6.0",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10",
     "sharp": "^0.35.5",
     "tsx": "^4.23.15",
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.71.0"
   }
 }
