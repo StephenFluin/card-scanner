@@ -42,7 +42,9 @@ async function download(url: string, file: string): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  const catalog = JSON.parse(await readFile(join(ROOT, 'public', 'catalog.json'), 'utf8')) as Catalog;
+  const catalog = JSON.parse(
+    await readFile(join(ROOT, 'public', 'catalog.json'), 'utf8'),
+  ) as Catalog;
   const jobs: (ScanLabel & { url: string })[] = [];
   for (const set of catalog.sets) {
     if (!set.imageBase) continue;
@@ -63,13 +65,16 @@ async function main(): Promise<void> {
     }
   }
   const labels: ScanLabel[] = [];
-  let next = 0, fetched = 0, missing = 0;
+  let next = 0,
+    fetched = 0,
+    missing = 0;
   await Promise.all(
     Array.from({ length: CONCURRENCY }, async () => {
       while (next < jobs.length) {
         const job = jobs[next++];
         const path = join(OUT, job.file);
-        const ok = existsSync(path) || (await download(job.url, path).then((r) => (r && fetched++, r)));
+        const ok =
+          existsSync(path) || (await download(job.url, path).then((r) => (r && fetched++, r)));
         if (!ok) {
           missing++;
           continue;
@@ -77,7 +82,9 @@ async function main(): Promise<void> {
         const { url: _url, ...label } = job;
         labels.push(label);
         if ((fetched + missing) % 200 === 0 && fetched + missing > 0) {
-          console.log(`${labels.length}/${jobs.length} (${fetched} downloaded, ${missing} missing)`);
+          console.log(
+            `${labels.length}/${jobs.length} (${fetched} downloaded, ${missing} missing)`,
+          );
         }
       }
     }),

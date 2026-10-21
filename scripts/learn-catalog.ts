@@ -87,7 +87,11 @@ function consensus<T>(weights: Map<T, number>, share: number): T | null {
 
 async function loadObservations(): Promise<Observations> {
   if (args.file) return JSON.parse(await readFile(args.file, 'utf8')) as Observations;
-  const project = (JSON.parse(await readFile(join(ROOT, '.firebaserc'), 'utf8')) as { projects: { default: string } }).projects.default;
+  const project = (
+    JSON.parse(await readFile(join(ROOT, '.firebaserc'), 'utf8')) as {
+      projects: { default: string };
+    }
+  ).projects.default;
   const json = execFileSync('firebase', ['database:get', '/observations', '--project', project], {
     encoding: 'utf8',
     maxBuffer: 512 * 1024 * 1024,
@@ -99,11 +103,17 @@ async function main(): Promise<void> {
   const minUsers = parseInt(args['min-users']!, 10);
   const agreement = parseFloat(args.agreement!);
   const observations = await loadObservations();
-  const catalog = JSON.parse(await readFile(join(ROOT, 'public', 'catalog.json'), 'utf8')) as Catalog;
-  const previous: LearnedSets | null = existsSync(OUT) ? (JSON.parse(await readFile(OUT, 'utf8')) as LearnedSets) : null;
+  const catalog = JSON.parse(
+    await readFile(join(ROOT, 'public', 'catalog.json'), 'utf8'),
+  ) as Catalog;
+  const previous: LearnedSets | null = existsSync(OUT)
+    ? (JSON.parse(await readFile(OUT, 'utf8')) as LearnedSets)
+    : null;
 
   const sets: LearnedSet[] = [];
-  for (const [code, numbers] of Object.entries(observations).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [code, numbers] of Object.entries(observations).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     const known = catalog.sets.find((s) => s.code === code);
     const prev = previous?.sets.find((s) => s.code === code);
     const observers = new Set<string>();
@@ -121,7 +131,8 @@ async function main(): Promise<void> {
           continue;
         }
         users++;
-        if (o.total) totals.set(parseInt(o.total, 10), (totals.get(parseInt(o.total, 10)) ?? 0) + 1);
+        if (o.total)
+          totals.set(parseInt(o.total, 10), (totals.get(parseInt(o.total, 10)) ?? 0) + 1);
         if (o.name) {
           const norm = normalizeName(o.name);
           const w = Math.max(0.05, (o.nameConf ?? 50) / 100);
@@ -133,7 +144,11 @@ async function main(): Promise<void> {
       }
       if (users < minUsers || rejected / (users + rejected) >= 0.2) continue;
       const norm = consensus(names, agreement);
-      const nameVoters = norm ? Object.values(byUser).filter((o) => !o.rejected && o.name && normalizeName(o.name) === norm).length : 0;
+      const nameVoters = norm
+        ? Object.values(byUser).filter(
+            (o) => !o.rejected && o.name && normalizeName(o.name) === norm,
+          ).length
+        : 0;
       const name = norm && nameVoters >= minUsers ? consensus(spellings.get(norm)!, 0) : null;
       cards[number] = { name, users, rejected };
     }
@@ -155,7 +170,9 @@ async function main(): Promise<void> {
   for (const s of sets) {
     const named = Object.values(s.cards).filter((c) => c.name).length;
     const flag = s.approved ? '' : '  <- NEW CODE: review, set a name and "approved": true';
-    console.log(`${s.code.padEnd(4)} observers ${String(s.observers).padStart(3)}  total ${s.official ?? '?'}  cards ${Object.keys(s.cards).length} (${named} named)${flag}`);
+    console.log(
+      `${s.code.padEnd(4)} observers ${String(s.observers).padStart(3)}  total ${s.official ?? '?'}  cards ${Object.keys(s.cards).length} (${named} named)${flag}`,
+    );
   }
   console.log(`wrote ${OUT}; run \`npm run catalog\` to merge it into public/catalog.json`);
 }

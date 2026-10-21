@@ -6,7 +6,12 @@ import type { Rect } from '../vision/image';
 import type { FrameResult } from './scan-protocol';
 import type { ScanStatus } from './scan-controller';
 
-const SIDE_COLORS: Record<Side, string> = { left: '#ff6b6b', right: '#4dabf7', top: '#ffd43b', bottom: '#b197fc' };
+const SIDE_COLORS: Record<Side, string> = {
+  left: '#ff6b6b',
+  right: '#4dabf7',
+  top: '#ffd43b',
+  bottom: '#b197fc',
+};
 
 /** Canvas drawn over the camera preview, in frame pixel coordinates. */
 @Component({
@@ -66,7 +71,8 @@ export class ScanOverlay {
 
       ctx.lineWidth = unit * 1.2;
       ctx.setLineDash(status === 'searching' || status === 'waiting' ? [unit * 6, unit * 4] : []);
-      ctx.strokeStyle = status === 'captured' || status === 'holding' ? '#4ade80' : 'rgba(255,255,255,0.85)';
+      ctx.strokeStyle =
+        status === 'captured' || status === 'holding' ? '#4ade80' : 'rgba(255,255,255,0.85)';
       ctx.beginPath();
       roundRect(ctx, guide, unit * 6);
       ctx.stroke();

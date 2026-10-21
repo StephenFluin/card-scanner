@@ -32,7 +32,10 @@ export function buildDebugBundle(input: DebugBundleInput): Blob {
     const { frame, nameCrop, debug, ...rest } = snap.result;
     snapshot = {
       at: snap.at,
-      result: { ...rest, debug: debug ? { roi: debug.roi, candidates: debug.candidates } : undefined },
+      result: {
+        ...rest,
+        debug: debug ? { roi: debug.roi, candidates: debug.candidates } : undefined,
+      },
       fusion: snap.fusion,
       name: snap.name ? { ...snap.name, prepared: undefined } : null,
       images: {

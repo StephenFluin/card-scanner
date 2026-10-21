@@ -25,7 +25,10 @@ export class CatalogService {
       const catalog = (await res.json()) as Catalog;
       this.index.set(new CatalogIndex(catalog));
       const cards = catalog.sets.reduce((n, s) => n + Object.keys(s.cards).length, 0);
-      this.logger.info('catalog', `loaded ${catalog.sets.length} sets, ${cards} cards (built ${catalog.generatedAt})`);
+      this.logger.info(
+        'catalog',
+        `loaded ${catalog.sets.length} sets, ${cards} cards (built ${catalog.generatedAt})`,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.error.set(msg);

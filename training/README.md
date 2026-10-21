@@ -12,12 +12,12 @@ Real scans contain only ~25 distinct set codes and as many printed set totals,
 so a model trained on them alone memorizes codes and totals as whole words and
 misreads new sets. Three augmentations force it to read characters instead:
 
-| augmentation | what it does | file |
-| --- | --- | --- |
-| real-glyph code swap | cuts letters out of real set-code boxes and rebuilds random codes in the true card font | `codebox.py` (`extract_code_glyphs`, `swap_code_letters`) |
-| font code box | renders a look-alike `XYZ EN` box in one of several condensed fonts (covers letters never seen in real codes) | `codebox.py` (`render_code_box`) |
-| synthetic number | inpaints the printed `NNN/TTT` and renders a random one in a bold italic | `codebox.py` (`replace_number`) |
-| negatives | misplaced or upside-down crops labelled empty, so the model says "nothing here" instead of inventing text | `dataset.py` |
+| augmentation         | what it does                                                                                                  | file                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| real-glyph code swap | cuts letters out of real set-code boxes and rebuilds random codes in the true card font                       | `codebox.py` (`extract_code_glyphs`, `swap_code_letters`) |
+| font code box        | renders a look-alike `XYZ EN` box in one of several condensed fonts (covers letters never seen in real codes) | `codebox.py` (`render_code_box`)                          |
+| synthetic number     | inpaints the printed `NNN/TTT` and renders a random one in a bold italic                                      | `codebox.py` (`replace_number`)                           |
+| negatives            | misplaced or upside-down crops labelled empty, so the model says "nothing here" instead of inventing text     | `dataset.py`                                              |
 
 Every sample is then degraded like a camera photo (resolution, blur, motion
 blur, noise, JPEG, exposure, white balance, gradients, glare) and rectified

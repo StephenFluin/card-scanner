@@ -42,7 +42,11 @@ export class CameraService {
     this.stop();
     if (!navigator.mediaDevices?.getUserMedia) {
       this.state.set('unavailable');
-      this.error.set(window.isSecureContext ? 'This browser has no camera API.' : 'Camera access needs HTTPS (or localhost).');
+      this.error.set(
+        window.isSecureContext
+          ? 'This browser has no camera API.'
+          : 'Camera access needs HTTPS (or localhost).',
+      );
       this.logger.error('camera', this.error()!);
       return;
     }
@@ -54,7 +58,9 @@ export class CameraService {
       width: { ideal: 1920 },
       height: { ideal: 1080 },
       frameRate: { ideal: 30 },
-      ...(preferred ? { deviceId: { exact: preferred } } : { facingMode: { ideal: 'environment' } }),
+      ...(preferred
+        ? { deviceId: { exact: preferred } }
+        : { facingMode: { ideal: 'environment' } }),
     };
     try {
       let stream: MediaStream;
@@ -64,7 +70,10 @@ export class CameraService {
         if (preferred && (e as DOMException).name === 'OverconstrainedError') {
           this.logger.warn('camera', 'saved camera not available, falling back to default');
           this.writePreferred(null);
-          stream = await navigator.mediaDevices.getUserMedia({ video: { ...video, deviceId: undefined, facingMode: { ideal: 'environment' } }, audio: false });
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { ...video, deviceId: undefined, facingMode: { ideal: 'environment' } },
+            audio: false,
+          });
         } else {
           throw e;
         }
@@ -73,8 +82,14 @@ export class CameraService {
       this.state.set('live');
       await this.applyFocus();
       this.refreshInfo();
-      this.devices.set((await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput'));
-      this.logger.info('camera', `started ${this.info()?.label} ${this.info()?.width}x${this.info()?.height}`, this.info());
+      this.devices.set(
+        (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput'),
+      );
+      this.logger.info(
+        'camera',
+        `started ${this.info()?.label} ${this.info()?.width}x${this.info()?.height}`,
+        this.info(),
+      );
     } catch (e) {
       const err = e as DOMException;
       const denied = err.name === 'NotAllowedError' || err.name === 'SecurityError';
@@ -89,7 +104,9 @@ export class CameraService {
   }
 
   stop(): void {
-    this.stream()?.getTracks().forEach((t) => t.stop());
+    this.stream()
+      ?.getTracks()
+      .forEach((t) => t.stop());
     this.stream.set(null);
     this.torchOn.set(false);
     if (this.state() === 'live') this.state.set('idle');
@@ -134,10 +151,14 @@ export class CameraService {
     if (!track || !caps?.focusMode) return;
     try {
       if (force && caps.focusMode.includes('single-shot')) {
-        await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' } as MediaTrackConstraintSet] });
+        await track.applyConstraints({
+          advanced: [{ focusMode: 'single-shot' } as MediaTrackConstraintSet],
+        });
       }
       if (caps.focusMode.includes('continuous')) {
-        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] });
+        await track.applyConstraints({
+          advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+        });
       }
     } catch (e) {
       this.logger.debug('camera', 'focus constraint rejected', e);

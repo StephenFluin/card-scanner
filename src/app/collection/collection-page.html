@@ -6,7 +6,12 @@
   </p>
   <label class="search">
     <span class="visually-hidden">Search your collection</span>
-    <input type="search" placeholder="Search by name, set or number" [value]="filter()" (input)="onFilter($event)" />
+    <input
+      type="search"
+      placeholder="Search by name, set or number"
+      [value]="filter()"
+      (input)="onFilter($event)"
+    />
   </label>
 </div>
 
@@ -30,7 +35,9 @@
 @for (g of groups(); track g.code) {
   <section class="panel set" [attr.aria-labelledby]="'set-' + g.code">
     <header class="set-head">
-      <h2 [id]="'set-' + g.code"><span class="card-code">{{ g.code }}</span> {{ g.name }}</h2>
+      <h2 [id]="'set-' + g.code">
+        <span class="card-code">{{ g.code }}</span> {{ g.name }}
+      </h2>
       <p class="muted">
         @if (g.official) {
           {{ g.ownedOfficial }} / {{ g.official }} of the main set ·
@@ -38,14 +45,25 @@
         {{ g.unique }} different, {{ g.copies }} total
       </p>
       @if (g.official) {
-        <progress [value]="g.ownedOfficial" [max]="g.official" [attr.aria-label]="g.name + ' completion'"></progress>
+        <progress
+          [value]="g.ownedOfficial"
+          [max]="g.official"
+          [attr.aria-label]="g.name + ' completion'"
+        ></progress>
       }
     </header>
     <ul class="cards">
       @for (c of g.cards; track c.key) {
         <li>
           @if (c.imageUrl) {
-            <img class="card-thumb" [src]="c.imageUrl" alt="" width="48" height="67" loading="lazy" />
+            <img
+              class="card-thumb"
+              [src]="c.imageUrl"
+              alt=""
+              width="48"
+              height="67"
+              loading="lazy"
+            />
           } @else {
             <span class="card-thumb" aria-hidden="true"></span>
           }
@@ -54,10 +72,29 @@
             <span class="name">{{ c.displayName }}</span>
           </div>
           <div class="qty" role="group" [attr.aria-label]="'Copies of ' + c.displayName">
-            <button type="button" (click)="collection.decrement(c.key)" [attr.aria-label]="'Remove one ' + c.displayName">−</button>
+            <button
+              type="button"
+              (click)="collection.decrement(c.key)"
+              [attr.aria-label]="'Remove one ' + c.displayName"
+            >
+              −
+            </button>
             <span class="count" aria-live="polite">{{ c.count }}</span>
-            <button type="button" (click)="collection.increment(c.key)" [attr.aria-label]="'Add one ' + c.displayName">+</button>
-            <button type="button" class="danger" (click)="removeAll(c)" [attr.aria-label]="'Remove all ' + c.displayName">Remove</button>
+            <button
+              type="button"
+              (click)="collection.increment(c.key)"
+              [attr.aria-label]="'Add one ' + c.displayName"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              class="danger"
+              (click)="removeAll(c)"
+              [attr.aria-label]="'Remove all ' + c.displayName"
+            >
+              Remove
+            </button>
           </div>
         </li>
       }

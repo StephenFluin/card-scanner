@@ -64,26 +64,34 @@ export class ContributionService {
         const { ref, uploadBytes } = await import('firebase/storage');
         await uploadBytes(ref(storage, imagePath), blob, {
           contentType: 'image/jpeg',
-          customMetadata: { label: o.text, key, model: o.model ?? '', confidence: o.confidence.toFixed(3) },
+          customMetadata: {
+            label: o.text,
+            key,
+            model: o.model ?? '',
+            confidence: o.confidence.toFixed(3),
+          },
         });
       }
       const { ref, runTransaction } = await import('firebase/database');
-      await runTransaction(ref(db, `observations/${setCode}/${number}/${uid}`), (cur: { count?: number } | null) => {
-        const next: Record<string, unknown> = {
-          text: o.text,
-          conf: Math.round(o.confidence * 1000) / 1000,
-          at: Date.now(),
-          count: (cur?.count ?? 0) + 1,
-        };
-        if (o.identity.total) next['total'] = o.identity.total;
-        if (o.nameRead) {
-          next['name'] = o.nameRead.slice(0, 80);
-          next['nameConf'] = Math.round(o.nameConfidence);
-        }
-        if (o.model) next['model'] = o.model.slice(0, 64);
-        if (imagePath) next['image'] = imagePath;
-        return next;
-      });
+      await runTransaction(
+        ref(db, `observations/${setCode}/${number}/${uid}`),
+        (cur: { count?: number } | null) => {
+          const next: Record<string, unknown> = {
+            text: o.text,
+            conf: Math.round(o.confidence * 1000) / 1000,
+            at: Date.now(),
+            count: (cur?.count ?? 0) + 1,
+          };
+          if (o.identity.total) next['total'] = o.identity.total;
+          if (o.nameRead) {
+            next['name'] = o.nameRead.slice(0, 80);
+            next['nameConf'] = Math.round(o.nameConfidence);
+          }
+          if (o.model) next['model'] = o.model.slice(0, 64);
+          if (imagePath) next['image'] = imagePath;
+          return next;
+        },
+      );
       this.logger.info('db', `contributed observation ${key}${imagePath ? ' + image' : ''}`);
     } catch (e) {
       this.logger.warn('db', `contribution for ${key} failed`, e instanceof Error ? e.message : e);
@@ -97,10 +105,16 @@ export class ContributionService {
     try {
       const { db } = await this.firebase.get();
       const { ref, update } = await import('firebase/database');
-      await update(ref(db, `observations/${identity.setCode}/${identity.number}/${uid}`), { rejected: true });
+      await update(ref(db, `observations/${identity.setCode}/${identity.number}/${uid}`), {
+        rejected: true,
+      });
       this.logger.info('db', `marked ${identity.key} as a misread`);
     } catch (e) {
-      this.logger.warn('db', `could not mark ${identity.key} as a misread`, e instanceof Error ? e.message : e);
+      this.logger.warn(
+        'db',
+        `could not mark ${identity.key} as a misread`,
+        e instanceof Error ? e.message : e,
+      );
     }
   }
 

@@ -67,7 +67,11 @@ export function resizeArea(img: RGBAImage, outW: number, outH: number): RGBAImag
       const x1 = x0 + sx;
       const ix0 = Math.floor(x0);
       const ix1 = Math.min(img.width, Math.ceil(x1));
-      let r = 0, g = 0, b = 0, a = 0, wsum = 0;
+      let r = 0,
+        g = 0,
+        b = 0,
+        a = 0,
+        wsum = 0;
       for (let y = iy0; y < iy1; y++) {
         const wy = Math.min(y + 1, y1) - Math.max(y, y0);
         for (let x = ix0; x < ix1; x++) {
@@ -149,7 +153,10 @@ export function otsuThreshold(g: GrayImage): number {
   const total = g.data.length;
   let sum = 0;
   for (let i = 0; i < 256; i++) sum += i * hist[i];
-  let sumB = 0, wB = 0, best = 0, threshold = 127;
+  let sumB = 0,
+    wB = 0,
+    best = 0,
+    threshold = 127;
   for (let t = 0; t < 256; t++) {
     wB += hist[t];
     if (wB === 0) continue;

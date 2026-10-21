@@ -9,7 +9,13 @@ import type { RGBAImage } from '../vision/image';
 import { LineModel } from '../vision/line-model';
 import { analyzeFrame, readCard, ReadVariant } from '../vision/pipeline';
 import type { InfoRead } from '../vision/reader';
-import { CARD_IMAGE_WIDTH, FrameRequest, FrameResult, WorkerRequest, WorkerResponse } from './scan-protocol';
+import {
+  CARD_IMAGE_WIDTH,
+  FrameRequest,
+  FrameResult,
+  WorkerRequest,
+  WorkerResponse,
+} from './scan-protocol';
 
 let model: LineModel | null = null;
 /** Running average of one model run (ms), to size the per-frame hypothesis budget. */
@@ -41,7 +47,12 @@ function handleFrame(req: FrameRequest): void {
   const t1 = performance.now();
 
   const infoLine = model ? { region: model.region, ...model.inputSize } : undefined;
-  const analysis = analyzeFrame(frame, { guide: req.guide, debug: req.debug, preview: req.debug, infoLine });
+  const analysis = analyzeFrame(frame, {
+    guide: req.guide,
+    debug: req.debug,
+    preview: req.debug,
+    infoLine,
+  });
   let quad = analysis.quad;
   let crops = analysis.crops;
   let info: InfoRead | null = null;
@@ -50,7 +61,14 @@ function handleFrame(req: FrameRequest): void {
   const t2 = performance.now();
   if (model && quad && crops && analysis.accepted) {
     const maxReads = Math.min(8, Math.max(2, Math.floor(FRAME_BUDGET_MS / modelMs)));
-    const read = readCard(model, frame, analysis.alternatives.length ? analysis.alternatives : [quad], infoLine, maxReads, lastWinner);
+    const read = readCard(
+      model,
+      frame,
+      analysis.alternatives.length ? analysis.alternatives : [quad],
+      infoLine,
+      maxReads,
+      lastWinner,
+    );
     ({ info, quad, crops, variant, tried } = read);
     lastWinner = read.info.parsed ? read.variant : null;
     const perRead = (performance.now() - t2) / Math.max(1, tried.length);
@@ -80,7 +98,16 @@ function handleFrame(req: FrameRequest): void {
     nameCrop: req.wantNameCrop ? keep(crops?.name) : null,
     cardImage:
       req.wantCardImage && quad && info?.parsed
-        ? keep(warpCardRegion(frame, cardToImage(quad), { x: 0, y: 0, w: 1, h: 1 }, CARD_IMAGE_WIDTH, Math.round(CARD_IMAGE_WIDTH / CARD_ASPECT), 2))
+        ? keep(
+            warpCardRegion(
+              frame,
+              cardToImage(quad),
+              { x: 0, y: 0, w: 1, h: 1 },
+              CARD_IMAGE_WIDTH,
+              Math.round(CARD_IMAGE_WIDTH / CARD_ASPECT),
+              2,
+            ),
+          )
         : null,
     timings: {
       capture: t1 - t0,
@@ -108,11 +135,18 @@ addEventListener('message', async ({ data }: MessageEvent<WorkerRequest>) => {
     if (data.type === 'init') {
       model = await LineModel.load(data.modelUrl);
       const m = model.manifest;
-      post({ type: 'ready', model: { name: m.name, createdAt: m.createdAt, note: m.note, params: m.params } });
+      post({
+        type: 'ready',
+        model: { name: m.name, createdAt: m.createdAt, note: m.note, params: m.params },
+      });
     } else if (data.type === 'frame') {
       handleFrame(data);
     }
   } catch (e) {
-    post({ type: 'error', id: data.type === 'frame' ? data.id : undefined, message: e instanceof Error ? `${e.message}\n${e.stack}` : String(e) });
+    post({
+      type: 'error',
+      id: data.type === 'frame' ? data.id : undefined,
+      message: e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
+    });
   }
 });

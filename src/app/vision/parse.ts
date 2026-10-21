@@ -13,7 +13,23 @@ export interface OcrWord {
   x: number;
 }
 
-const NAME_STOPWORDS = new Set(['HP', 'BASIC', 'STAGE', 'STAGE1', 'STAGE2', 'TRAINER', 'ITEM', 'SUPPORTER', 'STADIUM', 'TOOL', 'POKEMON', 'POKÉMON', 'EVOLVES', 'FROM', 'ENERGY']);
+const NAME_STOPWORDS = new Set([
+  'HP',
+  'BASIC',
+  'STAGE',
+  'STAGE1',
+  'STAGE2',
+  'TRAINER',
+  'ITEM',
+  'SUPPORTER',
+  'STADIUM',
+  'TOOL',
+  'POKEMON',
+  'POKÉMON',
+  'EVOLVES',
+  'FROM',
+  'ENERGY',
+]);
 
 /**
  * Picks the card name out of the words found in the name region: the name is
@@ -68,6 +84,10 @@ export function nameSimilarity(read: string, known: string): number {
   if (!a || !b) return 0;
   if (a === b) return 1;
   const bCore = b.replace(/ex$/, '');
-  const best = Math.min(levenshtein(a, b), levenshtein(a, bCore), levenshtein(a.replace(/ex$/, ''), bCore));
+  const best = Math.min(
+    levenshtein(a, b),
+    levenshtein(a, bCore),
+    levenshtein(a.replace(/ex$/, ''), bCore),
+  );
   return Math.max(0, 1 - best / Math.max(bCore.length, 3));
 }

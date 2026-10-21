@@ -1,5 +1,15 @@
 import { DatePipe } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { CollectionService } from '../services/collection.service';
 import { ContributionService } from '../services/contribution.service';
@@ -57,7 +67,8 @@ export class ScannerPage {
     afterNextRender(() => {
       const v = this.video().nativeElement;
       const updateSize = () => {
-        if (v.videoWidth && v.videoHeight) this.frameSize.set({ width: v.videoWidth, height: v.videoHeight });
+        if (v.videoWidth && v.videoHeight)
+          this.frameSize.set({ width: v.videoWidth, height: v.videoHeight });
       };
       v.addEventListener('loadedmetadata', updateSize);
       v.addEventListener('resize', updateSize);
@@ -91,7 +102,11 @@ export class ScannerPage {
         await this.onSourceRequest({ kind: image ? 'photo' : 'video', file });
         return;
       } catch (e) {
-        this.logger.error('app', `could not load sample ${url}`, e instanceof Error ? e.message : e);
+        this.logger.error(
+          'app',
+          `could not load sample ${url}`,
+          e instanceof Error ? e.message : e,
+        );
       }
     }
     await this.useCamera();
@@ -172,7 +187,8 @@ export class ScannerPage {
   /** Keeps the screen on while scanning (where supported). */
   private async keepAwake(): Promise<void> {
     try {
-      if (!this.wakeLock && 'wakeLock' in navigator) this.wakeLock = await navigator.wakeLock.request('screen');
+      if (!this.wakeLock && 'wakeLock' in navigator)
+        this.wakeLock = await navigator.wakeLock.request('screen');
     } catch {
       // Not allowed (e.g. battery saver); scanning still works.
     }

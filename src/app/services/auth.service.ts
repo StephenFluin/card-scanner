@@ -31,7 +31,9 @@ export class AuthService {
     const { auth } = await this.firebase.get();
     const { onAuthStateChanged, getRedirectResult } = await import('firebase/auth');
     onAuthStateChanged(auth, (u) => {
-      this.user.set(u ? { uid: u.uid, displayName: u.displayName, email: u.email, photoURL: u.photoURL } : null);
+      this.user.set(
+        u ? { uid: u.uid, displayName: u.displayName, email: u.email, photoURL: u.photoURL } : null,
+      );
       this.ready.set(true);
       this.logger.info('auth', u ? `signed in as ${u.email ?? u.uid}` : 'signed out');
     });
@@ -47,14 +49,18 @@ export class AuthService {
     this.busy.set(true);
     this.error.set(null);
     const { auth } = await this.firebase.get();
-    const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import('firebase/auth');
+    const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } =
+      await import('firebase/auth');
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
       await signInWithPopup(auth, provider);
     } catch (e) {
       const code = (e as { code?: string }).code;
-      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+      if (
+        code === 'auth/popup-blocked' ||
+        code === 'auth/operation-not-supported-in-this-environment'
+      ) {
         this.logger.warn('auth', `popup unavailable (${code}), falling back to redirect`);
         await signInWithRedirect(auth, provider);
         return;

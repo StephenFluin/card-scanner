@@ -94,7 +94,9 @@ export function warpCardRegion(
   const inv = 1 / (samples * samples);
   for (let oy = 0; oy < outH; oy++) {
     for (let ox = 0; ox < outW; ox++) {
-      let r = 0, g = 0, b = 0;
+      let r = 0,
+        g = 0,
+        b = 0;
       for (let sy = 0; sy < samples; sy++) {
         const v = region.y + ((oy + (sy + 0.5) / samples) / outH) * region.h;
         for (let sx = 0; sx < samples; sx++) {

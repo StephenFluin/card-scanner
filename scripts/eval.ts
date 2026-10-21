@@ -13,14 +13,25 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { INFO_LINE, INFO_LINE_INPUT, NAME_CARD_WIDTH, NAME_REGION } from '../src/app/vision/card-layout';
+import {
+  INFO_LINE,
+  INFO_LINE_INPUT,
+  NAME_CARD_WIDTH,
+  NAME_REGION,
+} from '../src/app/vision/card-layout';
 import { Catalog, CatalogIndex, cardKey } from '../src/app/vision/catalog';
 import { ReadFusion } from '../src/app/vision/fusion';
 import { cardToImage, Quad, warpCardRegion } from '../src/app/vision/homography';
 import type { RGBAImage } from '../src/app/vision/image';
 import { LineModel, LineModelManifest } from '../src/app/vision/line-model';
 import { nameSimilarity } from '../src/app/vision/parse';
-import { analyzeFrame, cropRegion, defaultGuide, FrameCrops, readCard } from '../src/app/vision/pipeline';
+import {
+  analyzeFrame,
+  cropRegion,
+  defaultGuide,
+  FrameCrops,
+  readCard,
+} from '../src/app/vision/pipeline';
 import { InfoRead, readInfoLine, readName } from '../src/app/vision/reader';
 import { TesseractEngine } from '../src/app/vision/tesseract-engine';
 import type { ScanLabel } from './download-scans';
@@ -55,11 +66,19 @@ function cornerError(a: Quad, b: Quad): number {
  * the same scene (small pose/blur jitter, fresh noise) through the real
  * multi-frame fusion. Reports correct captures, wrong captures and misses.
  */
-async function fusionEval(model: LineModel, index: CatalogIndex | null, picks: ScanLabel[], k: number): Promise<void> {
+async function fusionEval(
+  model: LineModel,
+  index: CatalogIndex | null,
+  picks: ScanLabel[],
+  k: number,
+): Promise<void> {
   const rand = mulberry32(parseInt(args.seed!, 10) + 1000);
   const guide = defaultGuide(1080, 1920);
   const infoLine = { region: model.region, ...model.inputSize };
-  let correct = 0, wrong = 0, none = 0, framesToConfirm = 0;
+  let correct = 0,
+    wrong = 0,
+    none = 0,
+    framesToConfirm = 0;
   for (const card of picks) {
     const img = await loadRGBA(join(CACHE, 'scans', card.file));
     const base = randomParams(rand, args.difficulty as 'easy' | 'normal' | 'hard');
@@ -67,15 +86,28 @@ async function fusionEval(model: LineModel, index: CatalogIndex | null, picks: S
     let outcome = 'none';
     let t = 0;
     for (let f = 0; f < k; f++) {
-      const p = { ...base, rotationDeg: base.rotationDeg + (rand() - 0.5) * 0.6, blur: Math.max(0, base.blur + (rand() - 0.5) * 0.4), offsetX: base.offsetX + (rand() - 0.5) * 0.004 };
+      const p = {
+        ...base,
+        rotationDeg: base.rotationDeg + (rand() - 0.5) * 0.6,
+        blur: Math.max(0, base.blur + (rand() - 0.5) * 0.4),
+        offsetX: base.offsetX + (rand() - 0.5) * 0.004,
+      };
       const { frame } = await synthesize(img, 1080, 1920, guide, p, rand);
       const a = analyzeFrame(frame, { guide, infoLine });
       t += 150;
       if (!a.accepted || !a.quad) continue;
-      const read = readCard(model, frame, a.alternatives.length ? a.alternatives : [a.quad], infoLine);
+      const read = readCard(
+        model,
+        frame,
+        a.alternatives.length ? a.alternatives : [a.quad],
+        infoLine,
+      );
       const state = fusion.push({ info: read.info }, t);
       if (state.status === 'confirmed' && state.best) {
-        outcome = state.best.identity.key === cardKey(card.code, card.number) ? 'correct' : `WRONG ${state.best.identity.key}`;
+        outcome =
+          state.best.identity.key === cardKey(card.code, card.number)
+            ? 'correct'
+            : `WRONG ${state.best.identity.key}`;
         framesToConfirm += f + 1;
         break;
       }
@@ -83,29 +115,47 @@ async function fusionEval(model: LineModel, index: CatalogIndex | null, picks: S
     if (outcome === 'correct') correct++;
     else if (outcome === 'none') none++;
     else wrong++;
-    if (outcome !== 'correct' || !args.quiet) console.log(`${outcome.padEnd(16)} ${card.label.padEnd(13)} bg=${base.background} blur=${base.blur.toFixed(1)} glare=${base.glare}`);
+    if (outcome !== 'correct' || !args.quiet)
+      console.log(
+        `${outcome.padEnd(16)} ${card.label.padEnd(13)} bg=${base.background} blur=${base.blur.toFixed(1)} glare=${base.glare}`,
+      );
   }
   const n = picks.length;
-  console.log(`\n=== fusion (${k} frames per card, catalog ${index ? 'on' : 'OFF (simulates a brand-new set)'}) ===`);
-  console.log(`captured correctly  ${((100 * correct) / n).toFixed(1)}%   avg frames to confirm ${(framesToConfirm / Math.max(1, correct + wrong)).toFixed(1)}`);
+  console.log(
+    `\n=== fusion (${k} frames per card, catalog ${index ? 'on' : 'OFF (simulates a brand-new set)'}) ===`,
+  );
+  console.log(
+    `captured correctly  ${((100 * correct) / n).toFixed(1)}%   avg frames to confirm ${(framesToConfirm / Math.max(1, correct + wrong)).toFixed(1)}`,
+  );
   console.log(`captured WRONG      ${((100 * wrong) / n).toFixed(1)}%`);
   console.log(`not captured        ${((100 * none) / n).toFixed(1)}%`);
 }
 
 async function main(): Promise<void> {
-  const catalog = JSON.parse(await readFile(join(ROOT, 'public', 'catalog.json'), 'utf8')) as Catalog;
+  const catalog = JSON.parse(
+    await readFile(join(ROOT, 'public', 'catalog.json'), 'utf8'),
+  ) as Catalog;
   const index = new CatalogIndex(catalog);
   const detectOnly = args['detect-only'];
   let model: LineModel | null = null;
   let manifest: LineModelManifest | null = null;
   if (!detectOnly) {
-    manifest = JSON.parse(await readFile(join(ROOT, 'public', 'models', 'info-line.json'), 'utf8')) as LineModelManifest;
+    manifest = JSON.parse(
+      await readFile(join(ROOT, 'public', 'models', 'info-line.json'), 'utf8'),
+    ) as LineModelManifest;
     const weights = await readFile(join(ROOT, 'public', 'models', manifest.weights));
-    model = LineModel.fromBuffers(manifest, weights.buffer.slice(weights.byteOffset, weights.byteOffset + weights.byteLength));
+    model = LineModel.fromBuffers(
+      manifest,
+      weights.buffer.slice(weights.byteOffset, weights.byteOffset + weights.byteLength),
+    );
   }
-  const infoLine = model ? { region: model.region, ...model.inputSize } : { region: INFO_LINE, ...INFO_LINE_INPUT };
+  const infoLine = model
+    ? { region: model.region, ...model.inputSize }
+    : { region: INFO_LINE, ...INFO_LINE_INPUT };
 
-  const scans = JSON.parse(await readFile(join(CACHE, 'scans', 'manifest.json'), 'utf8')) as ScanLabel[];
+  const scans = JSON.parse(
+    await readFile(join(CACHE, 'scans', 'manifest.json'), 'utf8'),
+  ) as ScanLabel[];
   const wanted = args.sets?.split(',');
   const pool = scans.filter((s) => !wanted || wanted.includes(s.code));
   const rand = mulberry32(parseInt(args.seed!, 10));
@@ -122,9 +172,22 @@ async function main(): Promise<void> {
   const engine = args.names ? new TesseractEngine() : null;
   await engine?.warmUp();
 
-  const frameW = 1080, frameH = 1920;
+  const frameW = 1080,
+    frameH = 1920;
   const guide = defaultGuide(frameW, frameH);
-  const s = { detected: 0, cornerOk: 0, exact: 0, confident: 0, confidentCorrect: 0, resolved: 0, names: 0, nameReads: 0, detectMs: 0, modelMs: 0, nameMs: 0 };
+  const s = {
+    detected: 0,
+    cornerOk: 0,
+    exact: 0,
+    confident: 0,
+    confidentCorrect: 0,
+    resolved: 0,
+    names: 0,
+    nameReads: 0,
+    detectMs: 0,
+    modelMs: 0,
+    nameMs: 0,
+  };
   const cornerErrs: number[] = [];
   const byBg = new Map<string, { n: number; ok: number }>();
 
@@ -155,11 +218,14 @@ async function main(): Promise<void> {
       frame = synth.frame;
       const analysis = analyzeFrame(synth.frame, { guide, infoLine });
       s.detectMs += analysis.timings.detect + analysis.timings.warp;
-      const err = analysis.quad ? (cornerError(analysis.quad, synth.quad) / guide.w) * 100 : Infinity;
+      const err = analysis.quad
+        ? (cornerError(analysis.quad, synth.quad) / guide.w) * 100
+        : Infinity;
       detail = `bg=${params.background} rot=${params.rotationDeg.toFixed(1)} tilt=${params.tiltX.toFixed(0)},${params.tiltY.toFixed(0)} scale=${params.scale.toFixed(2)} blur=${params.blur.toFixed(1)} glare=${params.glare} score=${analysis.scores?.total.toFixed(2) ?? '-'} cornerErr=${err.toFixed(1)}%`;
       if (!analysis.accepted || !analysis.crops) {
         console.log(`MISS ${truthKey.padEnd(9)} not detected  ${detail}`);
-        if (args['save-failures']) await saveRGBA(synth.frame, join(outDir, `${i}-${truthKey}-frame.jpg`));
+        if (args['save-failures'])
+          await saveRGBA(synth.frame, join(outDir, `${i}-${truthKey}-frame.jpg`));
         continue;
       }
       s.detected++;
@@ -171,14 +237,21 @@ async function main(): Promise<void> {
       if (err < 1.5) s.cornerOk++;
       crops = analysis.crops;
       if (model && analysis.quad) {
-        const read = readCard(model, synth.frame, analysis.alternatives.length ? analysis.alternatives : [analysis.quad], infoLine);
+        const read = readCard(
+          model,
+          synth.frame,
+          analysis.alternatives.length ? analysis.alternatives : [analysis.quad],
+          infoLine,
+        );
         info = read.info;
         crops = read.crops;
         if (read.variant !== 'normal') detail += ` via=${read.variant}`;
       }
       if (detectOnly) {
-        if (!args.quiet || err >= 1.5) console.log(`${err < 1.5 ? 'ok  ' : 'POOR'} ${truthKey.padEnd(9)} ${detail}`);
-        if (err >= 1.5 && args['save-failures']) await saveRGBA(synth.frame, join(outDir, `${i}-${truthKey}-frame.jpg`));
+        if (!args.quiet || err >= 1.5)
+          console.log(`${err < 1.5 ? 'ok  ' : 'POOR'} ${truthKey.padEnd(9)} ${detail}`);
+        if (err >= 1.5 && args['save-failures'])
+          await saveRGBA(synth.frame, join(outDir, `${i}-${truthKey}-frame.jpg`));
         continue;
       }
     }
@@ -219,7 +292,11 @@ async function main(): Promise<void> {
       if (frame) await saveRGBA(frame, `${base}-frame.jpg`);
       await saveRGBA(crops.infoLine, `${base}-info.png`);
       await saveGray(
-        { width: infoLine.width, height: infoLine.height, data: model.prepare(crops.infoLine).map((v) => (v + 0.5) * 255) },
+        {
+          width: infoLine.width,
+          height: infoLine.height,
+          data: model.prepare(crops.infoLine).map((v) => (v + 0.5) * 255),
+        },
         `${base}-info-input.png`,
       );
     }
@@ -229,17 +306,32 @@ async function main(): Promise<void> {
   const pct = (k: number, d = n) => `${((100 * k) / Math.max(1, d)).toFixed(1)}%`.padStart(6);
   cornerErrs.sort((a, b) => a - b);
   console.log('\n=== summary ===');
-  console.log(`model             ${manifest ? `${manifest.name} (${manifest.createdAt}) ${manifest.note ?? ''}` : 'none (detection only)'}`);
-  console.log(`frames            ${n} (${args.clean ? 'clean scans' : `synthetic, ${args.difficulty}`}${wanted ? `, sets ${wanted.join(',')}` : ''})`);
-  const q = (p: number) => cornerErrs[Math.min(cornerErrs.length - 1, Math.floor(cornerErrs.length * p))]?.toFixed(2) ?? '-';
-  console.log(`detected          ${pct(s.detected)}   corner err <1.5% of card width: ${pct(s.cornerOk)}   p50 ${q(0.5)}% p90 ${q(0.9)}% p95 ${q(0.95)}%`);
-  console.log(`  corner ok by bg  ${[...byBg.entries()].map(([k, v]) => `${k} ${v.ok}/${v.n}`).join('  ')}`);
+  console.log(
+    `model             ${manifest ? `${manifest.name} (${manifest.createdAt}) ${manifest.note ?? ''}` : 'none (detection only)'}`,
+  );
+  console.log(
+    `frames            ${n} (${args.clean ? 'clean scans' : `synthetic, ${args.difficulty}`}${wanted ? `, sets ${wanted.join(',')}` : ''})`,
+  );
+  const q = (p: number) =>
+    cornerErrs[Math.min(cornerErrs.length - 1, Math.floor(cornerErrs.length * p))]?.toFixed(2) ??
+    '-';
+  console.log(
+    `detected          ${pct(s.detected)}   corner err <1.5% of card width: ${pct(s.cornerOk)}   p50 ${q(0.5)}% p90 ${q(0.9)}% p95 ${q(0.95)}%`,
+  );
+  console.log(
+    `  corner ok by bg  ${[...byBg.entries()].map(([k, v]) => `${k} ${v.ok}/${v.n}`).join('  ')}`,
+  );
   if (detectOnly) return;
   console.log(`info line exact   ${pct(s.exact)}   (of detected: ${pct(s.exact, s.detected)})`);
-  console.log(`confident reads   ${pct(s.confident)}   precision when confident: ${pct(s.confidentCorrect, s.confident)}`);
+  console.log(
+    `confident reads   ${pct(s.confident)}   precision when confident: ${pct(s.confidentCorrect, s.confident)}`,
+  );
   console.log(`resolved key      ${pct(s.resolved)}   <- single-frame identification`);
-  if (engine) console.log(`name              ${pct(s.names)}   (read something: ${pct(s.nameReads)})`);
-  console.log(`timing            detect+warp ${(s.detectMs / Math.max(1, s.detected)).toFixed(0)} ms, model ${(s.modelMs / Math.max(1, s.detected)).toFixed(0)} ms${engine ? `, name OCR ${(s.nameMs / Math.max(1, s.detected)).toFixed(0)} ms` : ''}`);
+  if (engine)
+    console.log(`name              ${pct(s.names)}   (read something: ${pct(s.nameReads)})`);
+  console.log(
+    `timing            detect+warp ${(s.detectMs / Math.max(1, s.detected)).toFixed(0)} ms, model ${(s.modelMs / Math.max(1, s.detected)).toFixed(0)} ms${engine ? `, name OCR ${(s.nameMs / Math.max(1, s.detected)).toFixed(0)} ms` : ''}`,
+  );
   if (args['save-failures']) console.log(`failure images in ${outDir}`);
 }
 

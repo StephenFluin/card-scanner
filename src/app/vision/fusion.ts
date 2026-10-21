@@ -97,7 +97,15 @@ export class ReadFusion {
       resolution = this.catalog.resolve(setCode, number, total, input.name ?? null);
       setCode = resolution.setCode;
     }
-    return { t: now, key: cardKey(setCode, number), setCode, number, total, name: input.name ?? null, resolution };
+    return {
+      t: now,
+      key: cardKey(setCode, number),
+      setCode,
+      number,
+      total,
+      name: input.name ?? null,
+      resolution,
+    };
   }
 
   push(input: FusionInput, now: number): FusionState {
@@ -143,25 +151,60 @@ export class ReadFusion {
       total: last.total,
       name: catalogName ?? mostCommon(this.names.get(top.key) ?? []),
     };
-    const best: FusionCandidate = { identity, votes: top.votes, resolution: last.resolution, known: vouched(last) };
+    const best: FusionCandidate = {
+      identity,
+      votes: top.votes,
+      resolution: last.resolution,
+      known: vouched(last),
+    };
 
     const runnerUp = tally[1]?.votes ?? 0;
     if (runnerUp >= top.votes) {
-      return { status: 'reading', best, tally, reason: `tie between ${top.key} and ${tally[1].key}` };
+      return {
+        status: 'reading',
+        best,
+        tally,
+        reason: `tie between ${top.key} and ${tally[1].key}`,
+      };
     }
     if (best.known) {
       if (top.votes >= this.cfg.votesKnown) {
-        return { status: 'confirmed', best, tally, reason: `${top.votes} matching reads of a catalog card` };
+        return {
+          status: 'confirmed',
+          best,
+          tally,
+          reason: `${top.votes} matching reads of a catalog card`,
+        };
       }
       if (latest?.key === top.key && (latest.resolution?.agreement ?? 0) >= 0.99) {
-        return { status: 'confirmed', best, tally, reason: 'set code, total, number and name all match the catalog' };
+        return {
+          status: 'confirmed',
+          best,
+          tally,
+          reason: 'set code, total, number and name all match the catalog',
+        };
       }
-      return { status: 'reading', best, tally, reason: `catalog card, ${top.votes}/${this.cfg.votesKnown} reads` };
+      return {
+        status: 'reading',
+        best,
+        tally,
+        reason: `catalog card, ${top.votes}/${this.cfg.votesKnown} reads`,
+      };
     }
     if (top.votes >= this.cfg.votesUnknown) {
-      return { status: 'confirmed', best, tally, reason: `${top.votes} matching reads of a card not in the catalog` };
+      return {
+        status: 'confirmed',
+        best,
+        tally,
+        reason: `${top.votes} matching reads of a card not in the catalog`,
+      };
     }
-    return { status: 'reading', best, tally, reason: `not in catalog, ${top.votes}/${this.cfg.votesUnknown} reads` };
+    return {
+      status: 'reading',
+      best,
+      tally,
+      reason: `not in catalog, ${top.votes}/${this.cfg.votesUnknown} reads`,
+    };
   }
 }
 

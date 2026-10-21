@@ -87,7 +87,9 @@ export function encodePgm(g: GrayImage): Uint8Array {
 export function sharpness(img: RGBAImage): number {
   const g = toGray(img);
   const { width: w, height: h, data } = g;
-  let sum = 0, sumSq = 0, n = 0;
+  let sum = 0,
+    sumSq = 0,
+    n = 0;
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;

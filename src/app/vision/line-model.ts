@@ -9,7 +9,18 @@ import type { RGBAImage } from './image';
  */
 
 export type LayerSpec =
-  | { type: 'conv'; inC: number; outC: number; kh: number; kw: number; ph: number; pw: number; relu: boolean; w: number; b: number }
+  | {
+      type: 'conv';
+      inC: number;
+      outC: number;
+      kh: number;
+      kw: number;
+      ph: number;
+      pw: number;
+      relu: boolean;
+      w: number;
+      b: number;
+    }
   | { type: 'maxpool'; kh: number; kw: number };
 
 export interface LineModelManifest {
@@ -65,9 +76,20 @@ function conv(x: Tensor, L: ConvSpec, weights: Float32Array): Tensor {
   return { c: L.outC, h: oh, w: ow, data: out };
 }
 
-function convBlock4(x: Tensor, L: ConvSpec, weights: Float32Array, out: Float32Array, o: number, oh: number, ow: number): void {
+function convBlock4(
+  x: Tensor,
+  L: ConvSpec,
+  weights: Float32Array,
+  out: Float32Array,
+  o: number,
+  oh: number,
+  ow: number,
+): void {
   const plane = oh * ow;
-  const p0 = o * plane, p1 = p0 + plane, p2 = p1 + plane, p3 = p2 + plane;
+  const p0 = o * plane,
+    p1 = p0 + plane,
+    p2 = p1 + plane,
+    p3 = p2 + plane;
   out.fill(weights[L.b + o], p0, p0 + plane);
   out.fill(weights[L.b + o + 1], p1, p1 + plane);
   out.fill(weights[L.b + o + 2], p2, p2 + plane);
@@ -80,7 +102,10 @@ function convBlock4(x: Tensor, L: ConvSpec, weights: Float32Array, out: Float32A
     for (let ky = 0; ky < L.kh; ky++) {
       for (let kx = 0; kx < L.kw; kx++) {
         const wi = L.w + (o * L.inC + i) * kk + ky * L.kw + kx;
-        const w0 = weights[wi], w1 = weights[wi + stride], w2 = weights[wi + 2 * stride], w3 = weights[wi + 3 * stride];
+        const w0 = weights[wi],
+          w1 = weights[wi + stride],
+          w2 = weights[wi + 2 * stride],
+          w3 = weights[wi + 3 * stride];
         const dx = kx - L.pw;
         const xStart = Math.max(0, -dx);
         const xEnd = Math.min(ow, x.w - dx);
@@ -103,7 +128,15 @@ function convBlock4(x: Tensor, L: ConvSpec, weights: Float32Array, out: Float32A
   }
 }
 
-function convSingle(x: Tensor, L: ConvSpec, weights: Float32Array, out: Float32Array, o: number, oh: number, ow: number): void {
+function convSingle(
+  x: Tensor,
+  L: ConvSpec,
+  weights: Float32Array,
+  out: Float32Array,
+  o: number,
+  oh: number,
+  ow: number,
+): void {
   const plane = oh * ow;
   {
     const bias = weights[L.b + o];
@@ -183,7 +216,10 @@ export class LineModel {
 
   static async load(manifestUrl: string): Promise<LineModel> {
     const manifest = (await (await fetch(manifestUrl)).json()) as LineModelManifest;
-    const weightsUrl = new URL(manifest.weights, new URL(manifestUrl, globalThis.location?.href)).toString();
+    const weightsUrl = new URL(
+      manifest.weights,
+      new URL(manifestUrl, globalThis.location?.href),
+    ).toString();
     const buffer = await (await fetch(weightsUrl)).arrayBuffer();
     return LineModel.fromBuffers(manifest, buffer);
   }
@@ -220,7 +256,12 @@ export class LineModel {
 
   run(input: Float32Array): LineModelResult {
     const start = performance.now();
-    let x: Tensor = { c: 1, h: this.manifest.input.height, w: this.manifest.input.width, data: input };
+    let x: Tensor = {
+      c: 1,
+      h: this.manifest.input.height,
+      w: this.manifest.input.width,
+      data: input,
+    };
     for (const L of this.manifest.layers) {
       x = L.type === 'conv' ? conv(x, L, this.weights) : maxpool(x, L.kh, L.kw);
     }

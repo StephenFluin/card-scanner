@@ -8,17 +8,27 @@
     </button>
     <label class="btn">
       Analyze photo
-      <input class="visually-hidden" type="file" accept="image/*" (change)="onFile($event, 'photo')" />
+      <input
+        class="visually-hidden"
+        type="file"
+        accept="image/*"
+        (change)="onFile($event, 'photo')"
+      />
     </label>
     <label class="btn">
       Analyze video
-      <input class="visually-hidden" type="file" accept="video/*" (change)="onFile($event, 'video')" />
+      <input
+        class="visually-hidden"
+        type="file"
+        accept="video/*"
+        (change)="onFile($event, 'video')"
+      />
     </label>
     <button type="button" (click)="sourceRequest.emit({ kind: 'camera' })">Use camera</button>
   </div>
   <p class="muted">
-    Source: {{ scan.sourceLabel() || 'none' }}. A snapshot keeps the next full frame; the bundle includes it plus the
-    frame history and log.
+    Source: {{ scan.sourceLabel() || 'none' }}. A snapshot keeps the next full frame; the bundle
+    includes it plus the frame history and log.
     @if (scan.snapshot(); as s) {
       <span class="badge ok">snapshot of frame #{{ s.result.id }} ready</span>
     }
@@ -64,17 +74,18 @@
         <dd>#{{ r.id }} · {{ r.width }}×{{ r.height }} · {{ scan.fps() | number: '1.1-1' }} fps</dd>
         <dt>timings</dt>
         <dd>
-          grab {{ r.timings.capture | number: '1.0-0' }} · detect {{ r.timings.detect | number: '1.0-0' }} · warp
-          {{ r.timings.warp | number: '1.0-0' }} · model {{ r.timings.model | number: '1.0-0' }} · total
+          grab {{ r.timings.capture | number: '1.0-0' }} · detect
+          {{ r.timings.detect | number: '1.0-0' }} · warp {{ r.timings.warp | number: '1.0-0' }} ·
+          model {{ r.timings.model | number: '1.0-0' }} · total
           {{ r.timings.total | number: '1.0-0' }} ms
         </dd>
         <dt>detection</dt>
         <dd>
           @if (r.scores; as s) {
-            {{ r.accepted ? 'accepted' : 'rejected' }} score {{ s.total | number: '1.2-2' }} (support
-            {{ s.support | number: '1.2-2' }}, aspect {{ s.aspect | number: '1.2-2' }} [{{
-              s.aspectRatio | number: '1.3-3'
-            }}], border {{ s.border | number: '1.2-2' }} [σ {{ s.borderStd | number: '1.0-0' }}])
+            {{ r.accepted ? 'accepted' : 'rejected' }} score
+            {{ s.total | number: '1.2-2' }} (support {{ s.support | number: '1.2-2' }}, aspect
+            {{ s.aspect | number: '1.2-2' }} [{{ s.aspectRatio | number: '1.3-3' }}], border
+            {{ s.border | number: '1.2-2' }} [σ {{ s.borderStd | number: '1.0-0' }}])
           } @else {
             no quad (some side had no edge line)
           }
@@ -85,12 +96,19 @@
         <dd>
           {{ r.variant ?? '—' }}
           @for (t of r.tried; track t.variant) {
-            <span class="badge">{{ t.variant }}: {{ t.text || '∅' }} {{ t.confidence | number: '1.2-2' }}</span>
+            <span class="badge"
+              >{{ t.variant }}: {{ t.text || '∅' }} {{ t.confidence | number: '1.2-2' }}</span
+            >
           }
         </dd>
       </dl>
       <div class="row">
-        <canvas [appRgba]="r.debug?.preview" width="126" height="176" aria-label="Rectified card"></canvas>
+        <canvas
+          [appRgba]="r.debug?.preview"
+          width="126"
+          height="176"
+          aria-label="Rectified card"
+        ></canvas>
       </div>
     } @else {
       <p class="muted">No frames processed yet.</p>
@@ -99,35 +117,64 @@
 
   <section class="panel" aria-labelledby="debug-read">
     <h3 id="debug-read">Info line read</h3>
-    <canvas class="info-crop pixelated" [appRgba]="result()?.debug?.infoCrop" aria-label="Info line crop given to the model"></canvas>
+    <canvas
+      class="info-crop pixelated"
+      [appRgba]="result()?.debug?.infoCrop"
+      aria-label="Info line crop given to the model"
+    ></canvas>
     @if (info(); as i) {
       <p>
         @for (ch of chars(); track $index) {
-          <span class="char" [style.color]="charColor(ch.p)" [title]="(ch.p * 100 | number: '1.0-0') + '%'">{{ ch.c }}</span>
+          <span
+            class="char"
+            [style.color]="charColor(ch.p)"
+            [title]="(ch.p * 100 | number: '1.0-0') + '%'"
+            >{{ ch.c }}</span
+          >
         }
       </p>
       <dl>
         <dt>parsed</dt>
-        <dd>{{ i.parsed ? i.parsed.setCode + ' · ' + i.parsed.number + (i.parsed.total ? ' / ' + i.parsed.total : ' (no total)') : 'no' }}</dd>
+        <dd>
+          {{
+            i.parsed
+              ? i.parsed.setCode +
+                ' · ' +
+                i.parsed.number +
+                (i.parsed.total ? ' / ' + i.parsed.total : ' (no total)')
+              : 'no'
+          }}
+        </dd>
         <dt>confidence</dt>
-        <dd>{{ i.confidence | number: '1.2-2' }} (weakest character) · {{ i.ms | number: '1.0-0' }} ms</dd>
+        <dd>
+          {{ i.confidence | number: '1.2-2' }} (weakest character) · {{ i.ms | number: '1.0-0' }} ms
+        </dd>
       </dl>
     } @else {
       <p class="muted">Nothing read (no accepted card this frame).</p>
     }
     <h3>Name OCR (Tesseract)</h3>
     @if (scan.lastName(); as n) {
-      <canvas class="pixelated" [appRgba]="namePrepared()" aria-label="Name crop given to Tesseract"></canvas>
+      <canvas
+        class="pixelated"
+        [appRgba]="namePrepared()"
+        aria-label="Name crop given to Tesseract"
+      ></canvas>
       <dl>
         <dt>name</dt>
-        <dd>{{ n.value ?? '—' }} ({{ n.confidence | number: '1.0-0' }}) · {{ n.ms | number: '1.0-0' }} ms</dd>
+        <dd>
+          {{ n.value ?? '—' }} ({{ n.confidence | number: '1.0-0' }}) ·
+          {{ n.ms | number: '1.0-0' }} ms
+        </dd>
         @for (a of n.attempts; track $index) {
           <dt>{{ a.variant }}</dt>
           <dd>{{ a.text || '∅' }} → {{ a.value ?? '—' }} ({{ a.confidence | number: '1.0-0' }})</dd>
         }
       </dl>
     } @else {
-      <p class="muted">Not run yet (only for cards not in the catalog, unless "Always OCR names" is on).</p>
+      <p class="muted">
+        Not run yet (only for cards not in the catalog, unless "Always OCR names" is on).
+      </p>
     }
   </section>
 
@@ -141,7 +188,11 @@
         <dd>{{ f.lastVote }}</dd>
         @if (f.best; as b) {
           <dt>best</dt>
-          <dd>{{ b.identity.key }} {{ b.identity.name ?? '' }} ({{ b.known ? 'in catalog' : 'not in catalog' }})</dd>
+          <dd>
+            {{ b.identity.key }} {{ b.identity.name ?? '' }} ({{
+              b.known ? 'in catalog' : 'not in catalog'
+            }})
+          </dd>
           @for (note of b.resolution?.notes ?? []; track $index) {
             <dt>note</dt>
             <dd>{{ note }}</dd>
@@ -149,13 +200,23 @@
         }
       </dl>
       <table class="debug-table">
-        <caption class="visually-hidden">Votes per candidate card</caption>
+        <caption class="visually-hidden">
+          Votes per candidate card
+        </caption>
         <thead>
-          <tr><th scope="col">candidate</th><th scope="col">votes</th><th scope="col">catalog</th></tr>
+          <tr>
+            <th scope="col">candidate</th>
+            <th scope="col">votes</th>
+            <th scope="col">catalog</th>
+          </tr>
         </thead>
         <tbody>
           @for (t of f.tally; track t.key) {
-            <tr><td>{{ t.key }}</td><td>{{ t.votes }}</td><td>{{ t.known ? 'yes' : 'no' }}</td></tr>
+            <tr>
+              <td>{{ t.key }}</td>
+              <td>{{ t.votes }}</td>
+              <td>{{ t.known ? 'yes' : 'no' }}</td>
+            </tr>
           }
         </tbody>
       </table>
@@ -171,7 +232,10 @@
         <dt>camera</dt>
         <dd>{{ c.label || 'unnamed' }}</dd>
         <dt>stream</dt>
-        <dd>{{ c.width }}×{{ c.height }} @ {{ c.frameRate ?? '?' }} fps, facing {{ c.facingMode ?? '?' }}</dd>
+        <dd>
+          {{ c.width }}×{{ c.height }} @ {{ c.frameRate ?? '?' }} fps, facing
+          {{ c.facingMode ?? '?' }}
+        </dd>
         <dt>focus</dt>
         <dd>{{ c.focusMode ?? 'not reported' }}</dd>
         <dt>torch / zoom</dt>
@@ -180,7 +244,8 @@
       <dt>model</dt>
       <dd>
         @if (scan.model(); as m) {
-          {{ m.name }} · {{ m.params / 1000 | number: '1.0-0' }}k params · {{ m.createdAt }} {{ m.note }}
+          {{ m.name }} · {{ m.params / 1000 | number: '1.0-0' }}k params · {{ m.createdAt }}
+          {{ m.note }}
         } @else {
           loading…
         }
@@ -218,7 +283,10 @@
             <td>{{ h.id }}</td>
             <td>{{ h.accepted ? 'yes' : 'no' }}</td>
             <td>{{ h.score ?? '' }}</td>
-            <td>{{ h.read ?? '' }}{{ h.variant && h.variant !== 'normal' ? ' (' + h.variant + ')' : '' }}</td>
+            <td>
+              {{ h.read ?? ''
+              }}{{ h.variant && h.variant !== 'normal' ? ' (' + h.variant + ')' : '' }}
+            </td>
             <td>{{ h.confidence ?? '' }}</td>
             <td>{{ h.vote }}</td>
             <td>{{ h.timings.total }}</td>
@@ -254,7 +322,9 @@
   </div>
   <ul class="log-list" tabindex="0" aria-label="Log entries">
     @for (e of logs(); track $index) {
-      <li [class]="'log-' + e.level">{{ e.t }}ms {{ e.level }} [{{ e.category }}] {{ e.message }}</li>
+      <li [class]="'log-' + e.level">
+        {{ e.t }}ms {{ e.level }} [{{ e.category }}] {{ e.message }}
+      </li>
     }
   </ul>
 </section>

@@ -38,7 +38,9 @@ export class CollectionService {
   readonly error = signal<string | null>(null);
   readonly mode = computed(() => (this.auth.user() ? 'cloud' : 'local'));
   readonly cards = computed(() =>
-    Object.values(this.entries()).sort((a, b) => a.setCode.localeCompare(b.setCode) || a.number.localeCompare(b.number)),
+    Object.values(this.entries()).sort(
+      (a, b) => a.setCode.localeCompare(b.setCode) || a.number.localeCompare(b.number),
+    ),
   );
   readonly totalCards = computed(() => this.cards().reduce((n, c) => n + c.count, 0));
   readonly uniqueCards = computed(() => this.cards().length);
@@ -69,15 +71,44 @@ export class CollectionService {
       this.updateLocal((all) => {
         const cur = all[card.key];
         all[card.key] = cur
-          ? { ...cur, count: cur.count + 1, lastAdded: now, name: cur.name ?? card.name, total: cur.total ?? card.total }
-          : { key: card.key, setCode: card.setCode, number: card.number, total: card.total, name: card.name, count: 1, firstAdded: now, lastAdded: now };
+          ? {
+              ...cur,
+              count: cur.count + 1,
+              lastAdded: now,
+              name: cur.name ?? card.name,
+              total: cur.total ?? card.total,
+            }
+          : {
+              key: card.key,
+              setCode: card.setCode,
+              number: card.number,
+              total: card.total,
+              name: card.name,
+              count: 1,
+              firstAdded: now,
+              lastAdded: now,
+            };
       });
       return;
     }
     await this.transact(uid, card.key, (cur) =>
       cur
-        ? { ...cur, count: cur.count + 1, lastAdded: now, name: cur.name ?? card.name, total: cur.total ?? card.total }
-        : { setCode: card.setCode, number: card.number, total: card.total, name: card.name, count: 1, firstAdded: now, lastAdded: now },
+        ? {
+            ...cur,
+            count: cur.count + 1,
+            lastAdded: now,
+            name: cur.name ?? card.name,
+            total: cur.total ?? card.total,
+          }
+        : {
+            setCode: card.setCode,
+            number: card.number,
+            total: card.total,
+            name: card.name,
+            count: 1,
+            firstAdded: now,
+            lastAdded: now,
+          },
     );
   }
 
@@ -94,7 +125,9 @@ export class CollectionService {
       });
       return;
     }
-    await this.transact(uid, key, (cur) => (!cur || cur.count <= 1 ? null : { ...cur, count: cur.count - 1 }));
+    await this.transact(uid, key, (cur) =>
+      !cur || cur.count <= 1 ? null : { ...cur, count: cur.count - 1 },
+    );
   }
 
   async increment(key: string): Promise<void> {
@@ -124,7 +157,8 @@ export class CollectionService {
         (snap) => {
           const val = (snap.val() ?? {}) as Record<string, StoredCard>;
           const next: Record<string, OwnedCard> = {};
-          for (const [key, c] of Object.entries(val)) next[key] = { key, ...c, total: c.total ?? null, name: c.name ?? null };
+          for (const [key, c] of Object.entries(val))
+            next[key] = { key, ...c, total: c.total ?? null, name: c.name ?? null };
           this.entries.set(next);
           this.loading.set(false);
           this.logger.debug('db', `collection synced: ${Object.keys(next).length} cards`);
@@ -152,14 +186,31 @@ export class CollectionService {
       const l = local[key];
       await this.transact(uid, key, (cur) =>
         cur
-          ? { ...cur, count: cur.count + l.count, lastAdded: Math.max(cur.lastAdded, l.lastAdded), name: cur.name ?? l.name }
-          : { setCode: l.setCode, number: l.number, total: l.total, name: l.name, count: l.count, firstAdded: l.firstAdded, lastAdded: l.lastAdded },
+          ? {
+              ...cur,
+              count: cur.count + l.count,
+              lastAdded: Math.max(cur.lastAdded, l.lastAdded),
+              name: cur.name ?? l.name,
+            }
+          : {
+              setCode: l.setCode,
+              number: l.number,
+              total: l.total,
+              name: l.name,
+              count: l.count,
+              firstAdded: l.firstAdded,
+              lastAdded: l.lastAdded,
+            },
       );
     }
     this.writeLocal({});
   }
 
-  private async transact(uid: string, key: string, fn: (cur: StoredCard | null) => StoredCard | null): Promise<void> {
+  private async transact(
+    uid: string,
+    key: string,
+    fn: (cur: StoredCard | null) => StoredCard | null,
+  ): Promise<void> {
     try {
       const { db } = await this.firebase.get();
       const { ref, runTransaction } = await import('firebase/database');
@@ -167,7 +218,9 @@ export class CollectionService {
         const next = fn(cur);
         if (!next) return null;
         // RTDB rejects undefined and our rules reject nulls for optional fields: drop them.
-        return Object.fromEntries(Object.entries(next).filter(([, v]) => v !== null && v !== undefined));
+        return Object.fromEntries(
+          Object.entries(next).filter(([, v]) => v !== null && v !== undefined),
+        );
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

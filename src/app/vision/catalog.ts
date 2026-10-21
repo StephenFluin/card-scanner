@@ -107,7 +107,9 @@ export class CatalogIndex {
       } else if (totalNum !== null) {
         const byTotal = this.catalog.sets.filter((s) => s.official === totalNum);
         if (byTotal.length === 1) {
-          notes.push(`set ${byTotal[0].code} suggested by printed total ${total} (code read ${setCode})`);
+          notes.push(
+            `set ${byTotal[0].code} suggested by printed total ${total} (code read ${setCode})`,
+          );
         }
       }
     }
@@ -125,7 +127,8 @@ export class CatalogIndex {
         if (name) {
           const sim = nameSimilarity(name, catalogName);
           if (sim >= 0.6) agreement += 0.2;
-          else notes.push(`name read "${name}" vs catalog "${catalogName}" (sim ${sim.toFixed(2)})`);
+          else
+            notes.push(`name read "${name}" vs catalog "${catalogName}" (sim ${sim.toFixed(2)})`);
         }
       } else {
         notes.push(`number ${number} not in catalog for ${set.code}`);
@@ -133,7 +136,15 @@ export class CatalogIndex {
     } else {
       notes.push(`set code ${setCode} not in catalog`);
     }
-    return { set, catalogName, setCode: code, number, total, agreement: Math.min(1, agreement), notes };
+    return {
+      set,
+      catalogName,
+      setCode: code,
+      number,
+      total,
+      agreement: Math.min(1, agreement),
+      notes,
+    };
   }
 
   imageUrl(setCode: string, number: string): string | null {

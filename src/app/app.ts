@@ -11,7 +11,13 @@ import { CollectionService } from './services/collection.service';
     <header class="app-header">
       <a class="brand" routerLink="/">Card Scanner</a>
       <nav aria-label="Main">
-        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Scan</a>
+        <a
+          routerLink="/"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+          >Scan</a
+        >
         <a routerLink="/collection" routerLinkActive="active" ariaCurrentWhenActive="page">
           Collection <span class="badge">{{ collection.totalCards() }}</span>
         </a>
@@ -19,13 +25,21 @@ import { CollectionService } from './services/collection.service';
       <div class="account">
         @if (auth.enabled) {
           @if (auth.user(); as user) {
-            <span class="user" [title]="user.email ?? ''">{{ user.displayName ?? user.email }}</span>
+            <span class="user" [title]="user.email ?? ''">{{
+              user.displayName ?? user.email
+            }}</span>
             <button type="button" (click)="auth.signOut()">Sign out</button>
           } @else if (auth.ready()) {
-            <button type="button" class="primary" (click)="auth.signIn()" [disabled]="auth.busy()">Sign in with Google</button>
+            <button type="button" class="primary" (click)="auth.signIn()" [disabled]="auth.busy()">
+              Sign in with Google
+            </button>
           }
         } @else {
-          <span class="badge warn" title="Fill in src/app/firebase.config.ts to enable sign-in and cloud sync">Local only</span>
+          <span
+            class="badge warn"
+            title="Fill in src/app/firebase.config.ts to enable sign-in and cloud sync"
+            >Local only</span
+          >
         }
       </div>
     </header>
@@ -33,7 +47,9 @@ import { CollectionService } from './services/collection.service';
       <p class="banner" role="alert">{{ err }}</p>
     }
     @if (auth.enabled && auth.ready() && !auth.user() && collection.totalCards() > 0) {
-      <p class="banner">Cards you scan are saved on this device. Sign in to keep them in your account.</p>
+      <p class="banner">
+        Cards you scan are saved on this device. Sign in to keep them in your account.
+      </p>
     }
     <main id="main">
       <router-outlet />

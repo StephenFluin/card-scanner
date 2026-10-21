@@ -8,7 +8,8 @@ import { downloadBlob, grayToRGBA } from './image-utils';
 import { RgbaCanvas } from './rgba-canvas';
 import { ScanController } from './scan-controller';
 
-export type SourceRequest = { kind: 'camera' } | { kind: 'photo'; file: File } | { kind: 'video'; file: File };
+export type SourceRequest =
+  { kind: 'camera' } | { kind: 'photo'; file: File } | { kind: 'video'; file: File };
 
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 
@@ -74,7 +75,18 @@ export class DebugPanel {
   protected readonly logLevel = signal<LogLevel>('info');
   protected readonly logCategory = signal<LogCategory | 'all'>('all');
   protected readonly recording = signal(false);
-  protected readonly categories: LogCategory[] = ['app', 'camera', 'worker', 'read', 'name', 'fusion', 'capture', 'catalog', 'auth', 'db'];
+  protected readonly categories: LogCategory[] = [
+    'app',
+    'camera',
+    'worker',
+    'read',
+    'name',
+    'fusion',
+    'capture',
+    'catalog',
+    'auth',
+    'db',
+  ];
 
   protected readonly logs = computed(() => {
     const min = LEVEL_ORDER[this.logLevel()];
@@ -91,7 +103,9 @@ export class DebugPanel {
   protected readonly chars = computed(() => {
     const info = this.info();
     if (!info) return [];
-    return info.text.split('').map((c, i) => ({ c: c === ' ' ? '␣' : c, p: info.charConfidences[i] ?? 0 }));
+    return info.text
+      .split('')
+      .map((c, i) => ({ c: c === ' ' ? '␣' : c, p: info.charConfidences[i] ?? 0 }));
   });
   protected readonly namePrepared = computed(() => {
     const n = this.scan.lastName();
@@ -148,15 +162,23 @@ export class DebugPanel {
   protected recordClip(seconds = 5): void {
     const stream = this.camera.stream();
     if (!stream || this.recording() || typeof MediaRecorder === 'undefined') return;
-    const type = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'].find((t) => MediaRecorder.isTypeSupported(t));
+    const type = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'].find((t) =>
+      MediaRecorder.isTypeSupported(t),
+    );
     const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 12_000_000 });
     const chunks: Blob[] = [];
     rec.ondataavailable = (e) => chunks.push(e.data);
     rec.onstop = () => {
       this.recording.set(false);
       const blob = new Blob(chunks, { type: rec.mimeType });
-      downloadBlob(blob, `card-scanner-clip-${Date.now()}.${rec.mimeType.includes('mp4') ? 'mp4' : 'webm'}`);
-      this.logger.info('camera', `recorded ${seconds}s clip (${Math.round(blob.size / 1024)} KiB, ${rec.mimeType})`);
+      downloadBlob(
+        blob,
+        `card-scanner-clip-${Date.now()}.${rec.mimeType.includes('mp4') ? 'mp4' : 'webm'}`,
+      );
+      this.logger.info(
+        'camera',
+        `recorded ${seconds}s clip (${Math.round(blob.size / 1024)} KiB, ${rec.mimeType})`,
+      );
     };
     this.recording.set(true);
     rec.start();

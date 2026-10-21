@@ -34,7 +34,11 @@ export class CollectionPage {
     for (const c of this.collection.cards()) {
       const set = idx?.setByCode(c.setCode) ?? null;
       const displayName = set?.cards[c.number] ?? c.name ?? 'Unknown';
-      if (q && !`${c.setCode} ${c.number} ${displayName} ${set?.name ?? ''}`.toLowerCase().includes(q)) continue;
+      if (
+        q &&
+        !`${c.setCode} ${c.number} ${displayName} ${set?.name ?? ''}`.toLowerCase().includes(q)
+      )
+        continue;
       let g = bySet.get(c.setCode);
       if (!g) {
         g = {
@@ -54,7 +58,9 @@ export class CollectionPage {
       g.copies += c.count;
       if (g.official !== null && parseInt(c.number, 10) <= g.official) g.ownedOfficial++;
     }
-    return [...bySet.values()].sort((a, b) => b.releaseDate.localeCompare(a.releaseDate) || a.code.localeCompare(b.code));
+    return [...bySet.values()].sort(
+      (a, b) => b.releaseDate.localeCompare(a.releaseDate) || a.code.localeCompare(b.code),
+    );
   });
 
   protected onFilter(event: Event): void {
@@ -62,7 +68,11 @@ export class CollectionPage {
   }
 
   protected removeAll(card: OwnedCard & { displayName: string }): void {
-    if (confirm(`Remove all ${card.count} cop${card.count === 1 ? 'y' : 'ies'} of ${card.setCode} ${card.number} ${card.displayName}?`)) {
+    if (
+      confirm(
+        `Remove all ${card.count} cop${card.count === 1 ? 'y' : 'ies'} of ${card.setCode} ${card.number} ${card.displayName}?`,
+      )
+    ) {
       void this.collection.remove(card.key);
     }
   }

@@ -12,22 +12,22 @@ The set code plus the collector number uniquely identifies a card. Because the
 model reads characters rather than memorizing cards, it also works on **sets it
 has never seen**, including sets released after it was trained.
 
-| | |
-| --- | --- |
-| Cards | Silver-border English cards: Scarlet & Violet and Mega Evolution series (2023+), including promos |
-| Size | 227k parameters, 444 KB (float16) |
-| Speed | ~25 ms per read in plain JavaScript on a desktop CPU; no ML library or GPU needed |
-| License | AGPL-3.0-or-later (see [LICENSE](../LICENSE)) |
+|         |                                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------------- |
+| Cards   | Silver-border English cards: Scarlet & Violet and Mega Evolution series (2023+), including promos |
+| Size    | 227k parameters, 444 KB (float16)                                                                 |
+| Speed   | ~25 ms per read in plain JavaScript on a desktop CPU; no ML library or GPU needed                 |
+| License | AGPL-3.0-or-later (see [LICENSE](../LICENSE))                                                     |
 
 ## Files
 
-| File | What it is |
-| --- | --- |
-| [`public/models/info-line.json`](../public/models/info-line.json) | Manifest: input size and card region, character set, layer list |
-| [`public/models/info-line.bin`](../public/models/info-line.bin) | Weights: little-endian float16, offsets given in the manifest |
+| File                                                              | What it is                                                        |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [`public/models/info-line.json`](../public/models/info-line.json) | Manifest: input size and card region, character set, layer list   |
+| [`public/models/info-line.bin`](../public/models/info-line.bin)   | Weights: little-endian float16, offsets given in the manifest     |
 | [`src/app/vision/line-model.ts`](../src/app/vision/line-model.ts) | TypeScript runtime (browser, Web Worker or Node), no dependencies |
-| [`training/infer.py`](../training/infer.py) | Python reference implementation (NumPy + Pillow only) |
-| [`training/`](../training/README.md) | Training code to reproduce or retrain the model |
+| [`training/infer.py`](../training/infer.py)                       | Python reference implementation (NumPy + Pillow only)             |
+| [`training/`](../training/README.md)                              | Training code to reproduce or retrain the model                   |
 
 ## Quick start
 
@@ -53,7 +53,14 @@ const model = await LineModel.load('/models/info-line.json');
 // `corners` are the card's four corners in the frame, in reading order:
 // top-left, top-right, bottom-right, bottom-left.
 const H = cardToImage(corners);
-const crop = warpCardRegion(frame, H, model.region, model.inputSize.width, model.inputSize.height, 2);
+const crop = warpCardRegion(
+  frame,
+  H,
+  model.region,
+  model.inputSize.width,
+  model.inputSize.height,
+  2,
+);
 
 const { text, confidence } = model.run(model.prepare(crop));
 const parsed = parseInfoLine(text); // { setCode: 'SVI', number: '015', total: '198' } or null
@@ -66,7 +73,7 @@ with `LineModel.fromBuffers(manifestJson, weightsArrayBuffer)` instead of `load(
 ## Input: what to feed it
 
 The model expects one specific region of the card, straightened, as a
-**248 × 32** image. The region is given in *normalized card coordinates*
+**248 × 32** image. The region is given in _normalized card coordinates_
 (0–1 across the full physical card, including the silver border) and is also
 stored in the manifest (`input.region`):
 

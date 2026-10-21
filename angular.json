@@ -54,9 +54,7 @@
                 "input": "public"
               }
             ],
-            "styles": [
-              "src/styles.scss"
-            ],
+            "styles": ["src/styles.scss"],
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
@@ -66,9 +64,7 @@
               "entry": "src/server.ts"
             },
             "webWorkerTsConfig": "tsconfig.worker.json",
-            "allowedCommonJsDependencies": [
-              "tesseract.js"
-            ]
+            "allowedCommonJsDependencies": ["tesseract.js"]
           },
           "configurations": {
             "production": {

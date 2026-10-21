@@ -90,7 +90,11 @@ export class ScanController implements OnDestroy {
   readonly paused = signal(false);
   readonly lastName = signal<NameRead | null>(null);
   readonly snapshot = signal<Snapshot | null>(null);
-  readonly settings = signal<ScanSettings>({ guideFill: 0.8, alwaysReadNames: false, minFrameInterval: 70 });
+  readonly settings = signal<ScanSettings>({
+    guideFill: 0.8,
+    alwaysReadNames: false,
+    minFrameInterval: 70,
+  });
   readonly sourceLabel = signal<string>('');
 
   private worker: Worker | null = null;
@@ -135,7 +139,10 @@ export class ScanController implements OnDestroy {
     this.fuser.reset();
     this.armed = true;
     this.lastCapturedKey = null;
-    this.logger.info('app', source ? `frame source: ${source.kind} (${source.label})` : 'frame source cleared');
+    this.logger.info(
+      'app',
+      source ? `frame source: ${source.kind} (${source.label})` : 'frame source cleared',
+    );
     if (source && !this.running) void this.loop();
   }
 
@@ -194,13 +201,18 @@ export class ScanController implements OnDestroy {
       this.model.set(msg.model);
       this.status.set('waiting');
       this.statusDetail.set('Starting camera…');
-      this.logger.info('worker', `model ready: ${msg.model.name} (${msg.model.params} params, ${msg.model.createdAt})`);
+      this.logger.info(
+        'worker',
+        `model ready: ${msg.model.name} (${msg.model.params} params, ${msg.model.createdAt})`,
+      );
       if (this.source && !this.running) void this.loop();
     } else if (msg.type === 'error') {
       this.logger.error('worker', msg.message);
       if (msg.id === undefined) {
         this.status.set('error');
-        this.statusDetail.set(`Could not load the recognition model: ${msg.message.split('\n')[0]}`);
+        this.statusDetail.set(
+          `Could not load the recognition model: ${msg.message.split('\n')[0]}`,
+        );
       } else {
         this.pending.get(msg.id)?.(null);
         this.pending.delete(msg.id);
@@ -211,10 +223,24 @@ export class ScanController implements OnDestroy {
     }
   }
 
-  private send(bitmap: ImageBitmap, guide: Rect, wantNameCrop: boolean, keepFrame: boolean): Promise<FrameResult | null> {
+  private send(
+    bitmap: ImageBitmap,
+    guide: Rect,
+    wantNameCrop: boolean,
+    keepFrame: boolean,
+  ): Promise<FrameResult | null> {
     const id = this.nextId++;
     const wantCardImage = !!this.pendingContribution;
-    const req: FrameRequest = { type: 'frame', id, bitmap, guide, wantNameCrop, wantCardImage, debug: this.debug() || keepFrame, keepFrame };
+    const req: FrameRequest = {
+      type: 'frame',
+      id,
+      bitmap,
+      guide,
+      wantNameCrop,
+      wantCardImage,
+      debug: this.debug() || keepFrame,
+      keepFrame,
+    };
     return new Promise((resolve) => {
       this.pending.set(id, resolve);
       this.worker!.postMessage(req, [bitmap]);
@@ -277,14 +303,19 @@ export class ScanController implements OnDestroy {
     if (!r.accepted) {
       this.framesWithoutCard++;
       if (this.framesWithoutCard === REARM_FRAMES) {
-        if (!this.armed) this.logger.info('capture', 'card left the guide; ready for the next card');
+        if (!this.armed)
+          this.logger.info('capture', 'card left the guide; ready for the next card');
         this.armed = true;
         this.fuser.reset();
         this.pendingName = null;
       }
       if (this.framesWithoutCard >= REARM_FRAMES || this.status() === 'reading') {
         this.status.set('searching');
-        this.statusDetail.set(r.quad ? 'Card edges unclear: hold the card flat, inside the frame' : 'Hold a card inside the frame');
+        this.statusDetail.set(
+          r.quad
+            ? 'Card edges unclear: hold the card flat, inside the frame'
+            : 'Hold a card inside the frame',
+        );
       }
     } else {
       this.framesWithoutCard = 0;
@@ -323,7 +354,9 @@ export class ScanController implements OnDestroy {
     if (f.status !== 'confirmed' || !best) {
       if (this.status() !== 'holding' || best?.identity.key !== this.lastCapturedKey) {
         this.status.set('reading');
-        this.statusDetail.set(best ? `Reading… ${best.identity.setCode} ${best.identity.number}` : 'Reading the card…');
+        this.statusDetail.set(
+          best ? `Reading… ${best.identity.setCode} ${best.identity.number}` : 'Reading the card…',
+        );
       }
       return;
     }
@@ -333,7 +366,8 @@ export class ScanController implements OnDestroy {
       this.statusDetail.set('Already captured. Remove the card to scan the next one.');
       return;
     }
-    const set = best.resolution?.set ?? this.catalog.index()?.setByCode(best.identity.setCode) ?? null;
+    const set =
+      best.resolution?.set ?? this.catalog.index()?.setByCode(best.identity.setCode) ?? null;
     const capture: Capture = {
       id: ++this.captureSeq,
       identity: best.identity,
@@ -351,12 +385,18 @@ export class ScanController implements OnDestroy {
     void this.collection.add(best.identity);
     navigator.vibrate?.(60);
     this.status.set('captured');
-    this.statusDetail.set(`Captured ${best.identity.setCode} ${best.identity.number}${best.identity.name ? ` · ${best.identity.name}` : ''}`);
-    this.logger.info('capture', `captured ${key} ${best.identity.name ?? '(no name)'}: ${f.reason}`, {
-      identity: best.identity,
-      tally: f.tally,
-      notes: best.resolution?.notes,
-    });
+    this.statusDetail.set(
+      `Captured ${best.identity.setCode} ${best.identity.number}${best.identity.name ? ` · ${best.identity.name}` : ''}`,
+    );
+    this.logger.info(
+      'capture',
+      `captured ${key} ${best.identity.name ?? '(no name)'}: ${f.reason}`,
+      {
+        identity: best.identity,
+        tally: f.tally,
+        notes: best.resolution?.notes,
+      },
+    );
   }
 
   /** Starts collecting what this capture tells us, for the learned catalog and training. */
@@ -413,7 +453,11 @@ export class ScanController implements OnDestroy {
       this.lastName.set(name);
       this.pendingName = name.value;
       if (key && name.value) this.namedKeys.add(key);
-      this.logger.debug('name', `name read "${name.value}" (${Math.round(name.confidence)}) in ${Math.round(name.ms)}ms`, name.attempts);
+      this.logger.debug(
+        'name',
+        `name read "${name.value}" (${Math.round(name.confidence)}) in ${Math.round(name.ms)}ms`,
+        name.attempts,
+      );
     } catch (e) {
       this.logger.warn('name', 'name OCR failed', e instanceof Error ? e.message : e);
     } finally {

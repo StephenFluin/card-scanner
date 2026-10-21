@@ -64,7 +64,12 @@ export class TesseractEngine implements OcrEngine {
         }
       }
     }
-    return { text: data.text.trim(), confidence: data.confidence, words, ms: performance.now() - start };
+    return {
+      text: data.text.trim(),
+      confidence: data.confidence,
+      words,
+      ms: performance.now() - start,
+    };
   }
 
   async terminate(): Promise<void> {

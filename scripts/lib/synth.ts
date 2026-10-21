@@ -93,7 +93,10 @@ function fillBackground(img: RGBAImage, kind: SynthParams['background'], r: Rand
   }
   if (kind === 'clutter') {
     for (let i = 0; i < 25; i++) {
-      const rx = r() * w, ry = r() * h, rw = between(r, 30, 300), rh = between(r, 30, 300);
+      const rx = r() * w,
+        ry = r() * h,
+        rw = between(r, 30, 300),
+        rh = between(r, 30, 300);
       const c = [r() * 255, r() * 255, r() * 255];
       for (let y = Math.max(0, ry | 0); y < Math.min(h, ry + rh); y++) {
         for (let x = Math.max(0, rx | 0); x < Math.min(w, rx + rw); x++) {
@@ -110,8 +113,10 @@ function fillBackground(img: RGBAImage, kind: SynthParams['background'], r: Rand
 function sampleBilinear(img: RGBAImage, x: number, y: number, out: number[]): void {
   const fx = Math.max(0, Math.min(img.width - 1.001, x - 0.5));
   const fy = Math.max(0, Math.min(img.height - 1.001, y - 0.5));
-  const x0 = fx | 0, y0 = fy | 0;
-  const wx = fx - x0, wy = fy - y0;
+  const x0 = fx | 0,
+    y0 = fy | 0;
+  const wx = fx - x0,
+    wy = fy - y0;
   for (let c = 0; c < 4; c++) {
     const a = img.data[(y0 * img.width + x0) * 4 + c];
     const b = img.data[(y0 * img.width + x0 + 1) * 4 + c];
@@ -183,14 +188,18 @@ export async function synthesize(
       sampleBilinear(card, s.x, s.y, px);
       const alpha = px[3] / 255;
       const q = (y * frameW + x) * 4;
-      for (let c = 0; c < 3; c++) frame.data[q + c] = frame.data[q + c] * (1 - alpha) + px[c] * alpha;
+      for (let c = 0; c < 3; c++)
+        frame.data[q + c] = frame.data[q + c] * (1 - alpha) + px[c] * alpha;
     }
   }
 
   // Lighting: global brightness, colour cast, linear gradient, optional glare.
   const gAngle = r() * Math.PI * 2;
-  const gx = Math.cos(gAngle), gy = Math.sin(gAngle);
-  const glareX = cx + (r() - 0.5) * cw, glareY = cy + (r() - 0.5) * ch, glareR = between(r, 0.1, 0.3) * cw;
+  const gx = Math.cos(gAngle),
+    gy = Math.sin(gAngle);
+  const glareX = cx + (r() - 0.5) * cw,
+    glareY = cy + (r() - 0.5) * ch,
+    glareR = between(r, 0.1, 0.3) * cw;
   for (let y = 0; y < frameH; y++) {
     for (let x = 0; x < frameW; x++) {
       const q = (y * frameW + x) * 4;
@@ -201,7 +210,10 @@ export async function synthesize(
         glare = 200 * Math.exp(-d2);
       }
       for (let c = 0; c < 3; c++) {
-        frame.data[q + c] = frame.data[q + c] * p.brightness * p.colorCast[c] * grad + glare + (r() - 0.5) * 2 * p.noise;
+        frame.data[q + c] =
+          frame.data[q + c] * p.brightness * p.colorCast[c] * grad +
+          glare +
+          (r() - 0.5) * 2 * p.noise;
       }
     }
   }

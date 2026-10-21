@@ -49,8 +49,14 @@ export function readInfoLine(model: LineModel, crop: RGBAImage): InfoRead {
 }
 
 const NAME_VARIANTS: { label: string; prep: OcrPrepOptions }[] = [
-  { label: 'dark-text', prep: { targetHeight: 140, polarity: 'dark-text', binarize: false, pad: 16 } },
-  { label: 'light-text', prep: { targetHeight: 140, polarity: 'light-text', binarize: false, pad: 16 } },
+  {
+    label: 'dark-text',
+    prep: { targetHeight: 140, polarity: 'dark-text', binarize: false, pad: 16 },
+  },
+  {
+    label: 'light-text',
+    prep: { targetHeight: 140, polarity: 'light-text', binarize: false, pad: 16 },
+  },
 ];
 
 /**
@@ -70,9 +76,16 @@ export async function readName(engine: OcrEngine, crop: RGBAImage): Promise<Name
     const parts = value?.split(' ') ?? [];
     const used = out.words.filter((w) => parts.some((p) => p.length > 0 && w.text.includes(p)));
     const confidence = used.length ? used.reduce((s, w) => s + w.confidence, 0) / used.length : 0;
-    const attempt: NameAttempt = { variant: v.label, text: out.text, value, confidence, ms: out.ms };
+    const attempt: NameAttempt = {
+      variant: v.label,
+      text: out.text,
+      value,
+      confidence,
+      ms: out.ms,
+    };
     attempts.push(attempt);
-    if (value && (!best || confidence > best.attempt.confidence)) best = { attempt, image: prepared.image };
+    if (value && (!best || confidence > best.attempt.confidence))
+      best = { attempt, image: prepared.image };
     if (value && confidence >= 85) break;
   }
   return {

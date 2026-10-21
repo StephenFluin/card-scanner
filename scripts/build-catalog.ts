@@ -72,22 +72,45 @@ async function main(): Promise<void> {
         imageBase: withImage?.image ? withImage.image.replace(/\/[^/]+$/, '') : null,
         cards,
       });
-      console.log(`${code.padEnd(4)} ${set.id.padEnd(8)} ${String(set.cards.length).padStart(4)} cards  ${set.name}`);
+      console.log(
+        `${code.padEnd(4)} ${set.id.padEnd(8)} ${String(set.cards.length).padStart(4)} cards  ${set.name}`,
+      );
     }
   }
-  const extra = JSON.parse(await readFile(join(import.meta.dirname, 'extra-sets.json'), 'utf8')) as {
-    sets: { id: string; code: string; name: string; series: string; releaseDate: string; official: number }[];
+  const extra = JSON.parse(
+    await readFile(join(import.meta.dirname, 'extra-sets.json'), 'utf8'),
+  ) as {
+    sets: {
+      id: string;
+      code: string;
+      name: string;
+      series: string;
+      releaseDate: string;
+      official: number;
+    }[];
   };
   for (const e of extra.sets) {
     const existing = sets.find((s) => s.code === e.code);
     if (existing) {
       if (existing.official !== e.official) {
-        console.warn(`extra-sets.json: ${e.code} printed total ${e.official} differs from the API's ${existing.official}; using the API`);
+        console.warn(
+          `extra-sets.json: ${e.code} printed total ${e.official} differs from the API's ${existing.official}; using the API`,
+        );
       }
       console.log(`${e.code} is now in the API; the extra-sets.json entry can be removed`);
       continue;
     }
-    sets.push({ id: e.id, code: e.code, name: e.name, series: e.series, releaseDate: e.releaseDate, official: e.official, total: e.official, imageBase: null, cards: {} });
+    sets.push({
+      id: e.id,
+      code: e.code,
+      name: e.name,
+      series: e.series,
+      releaseDate: e.releaseDate,
+      official: e.official,
+      total: e.official,
+      imageBase: null,
+      cards: {},
+    });
     console.log(`${e.code.padEnd(4)} ${e.id.padEnd(8)}    - cards  ${e.name} (added by hand)`);
   }
   const learnedPath = join(import.meta.dirname, 'learned-sets.json');
@@ -97,12 +120,26 @@ async function main(): Promise<void> {
       let set = sets.find((s) => s.code === l.code);
       if (!set) {
         if (!l.approved || !l.official) {
-          console.log(`${l.code.padEnd(4)} learned from scans but not approved yet (scripts/learned-sets.json)`);
+          console.log(
+            `${l.code.padEnd(4)} learned from scans but not approved yet (scripts/learned-sets.json)`,
+          );
           continue;
         }
-        set = { id: l.code.toLowerCase(), code: l.code, name: l.name ?? l.code, series: '', releaseDate: '', official: l.official, total: l.official, imageBase: null, cards: {} };
+        set = {
+          id: l.code.toLowerCase(),
+          code: l.code,
+          name: l.name ?? l.code,
+          series: '',
+          releaseDate: '',
+          official: l.official,
+          total: l.official,
+          imageBase: null,
+          cards: {},
+        };
         sets.push(set);
-        console.log(`${l.code.padEnd(4)} ${set.id.padEnd(8)}    - cards  ${set.name} (learned from scans)`);
+        console.log(
+          `${l.code.padEnd(4)} ${set.id.padEnd(8)}    - cards  ${set.name} (learned from scans)`,
+        );
       }
       let filled = 0;
       for (const [number, c] of Object.entries(l.cards)) {

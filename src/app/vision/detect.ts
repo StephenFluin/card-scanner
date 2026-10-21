@@ -103,11 +103,18 @@ export function colorGradient(img: RGBAImage): Gradient {
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       const p = y * stride + x * 4;
-      let bestM = -1, bx = 0, by = 0;
+      let bestM = -1,
+        bx = 0,
+        by = 0;
       for (let c = 0; c < 3; c++) {
-        const tl = d[p - stride - 4 + c], t = d[p - stride + c], tr = d[p - stride + 4 + c];
-        const l = d[p - 4 + c], r = d[p + 4 + c];
-        const bl = d[p + stride - 4 + c], b = d[p + stride + c], br = d[p + stride + 4 + c];
+        const tl = d[p - stride - 4 + c],
+          t = d[p - stride + c],
+          tr = d[p - stride + 4 + c];
+        const l = d[p - 4 + c],
+          r = d[p + 4 + c];
+        const bl = d[p + stride - 4 + c],
+          b = d[p + stride + c],
+          br = d[p + stride + 4 + c];
         const sx = tr + 2 * r + br - tl - 2 * l - bl;
         const sy = bl + 2 * b + br - tl - 2 * t - tr;
         const m = sx * sx + sy * sy;
@@ -212,7 +219,8 @@ function fitLines(
   const maxSlope = 0.55; // ~29 degrees
   for (let k = 0; k < maxLines && remaining.length >= 2; k++) {
     let bestScore = 0;
-    let bestA = 0, bestB = 0;
+    let bestA = 0,
+      bestB = 0;
     const iterations = Math.min(400, remaining.length * 4);
     const tMin = remaining.reduce((m, p) => Math.min(m, p.t), Infinity);
     const tMaxV = remaining.reduce((m, p) => Math.max(m, p.t), -Infinity);
@@ -233,9 +241,14 @@ function fitLines(
     }
     if (bestScore === 0) break;
     // Weighted least-squares refinement on the inliers.
-    let a = bestA, b = bestB;
+    let a = bestA,
+      b = bestB;
     for (let iter = 0; iter < 2; iter++) {
-      let sw = 0, st = 0, ss = 0, stt = 0, sts = 0;
+      let sw = 0,
+        st = 0,
+        ss = 0,
+        stt = 0,
+        sts = 0;
       for (const p of remaining) {
         if (Math.abs(p.s - (a * p.t + b)) > tol) continue;
         const w = p.m;
@@ -251,7 +264,8 @@ function fitLines(
       b = (ss - a * st) / sw;
     }
     const inlierScanlines = new Set<number>();
-    let strength = 0, n = 0;
+    let strength = 0,
+      n = 0;
     for (const p of remaining) {
       if (Math.abs(p.s - (a * p.t + b)) <= tol) {
         inlierScanlines.add(p.t);
@@ -300,7 +314,9 @@ function dist(p: Point, q: Point): number {
 function isConvex(q: Quad): boolean {
   let sign = 0;
   for (let i = 0; i < 4; i++) {
-    const a = q[i], b = q[(i + 1) % 4], c = q[(i + 2) % 4];
+    const a = q[i],
+      b = q[(i + 1) % 4],
+      c = q[(i + 2) % 4];
     const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
     if (cross === 0) return false;
     const s = Math.sign(cross);
@@ -359,7 +375,7 @@ function outerness(side: Side, lines: EdgeLine[], guide: Rect, tol: number): num
     let n = 0;
     for (const b of lines) {
       if (b === a || b.support < 0.35) continue;
-      const d = ((b.a * tm + b.b) - (a.a * tm + a.b)) * outerSign;
+      const d = (b.a * tm + b.b - (a.a * tm + a.b)) * outerSign;
       if (d > tol * 2) n++;
     }
     return 1 / (1 + n);
@@ -383,10 +399,11 @@ function pairRoles(side: Side, lines: EdgeLine[], guide: Rect): number[] {
   for (let i = 0; i < lines.length; i++) {
     for (let j = 0; j < lines.length; j++) {
       if (i === j) continue;
-      const a = lines[i], b = lines[j];
+      const a = lines[i],
+        b = lines[j];
       if (Math.abs(a.a - b.a) > 0.04 || Math.min(a.support, b.support) < 0.35) continue;
       // Positive when line i is further out than line j.
-      const d = ((a.a * tm + a.b) - (b.a * tm + b.b)) * outerSign;
+      const d = (a.a * tm + a.b - (b.a * tm + b.b)) * outerSign;
       if (d >= BORDER_MIN * guide.w && d <= BORDER_MAX * guide.w) {
         roles[i] = Math.max(roles[i], 1);
         roles[j] = roles[j] === 1 ? 1 : -1;
@@ -415,8 +432,12 @@ export function detectCard(img: RGBAImage, opts: DetectOptions): DetectResult {
     return { quad: null, scores: null, alternatives: [], debug };
   }
 
-  const outer = Object.fromEntries(SIDES.map((s) => [s, outerness(s, candidates[s], guide, tol)])) as Record<Side, number[]>;
-  const roles = Object.fromEntries(SIDES.map((s) => [s, pairRoles(s, candidates[s], guide)])) as Record<Side, number[]>;
+  const outer = Object.fromEntries(
+    SIDES.map((s) => [s, outerness(s, candidates[s], guide, tol)]),
+  ) as Record<Side, number[]>;
+  const roles = Object.fromEntries(
+    SIDES.map((s) => [s, pairRoles(s, candidates[s], guide)]),
+  ) as Record<Side, number[]>;
   const all: DetectCandidate[] = [];
   for (const [li, l] of candidates.left.entries()) {
     for (const [ri, r] of candidates.right.entries()) {
@@ -433,10 +454,14 @@ export function detectCard(img: RGBAImage, opts: DetectOptions): DetectResult {
           const support = (l.support + r.support + t.support + b.support) / 4;
           const borderStd = borderUniformity(img, quad);
           const border = Math.max(0, 1 - borderStd / 30);
-          const pair = (roles.left[li] + roles.right[ri] + roles.top[ti] + roles.bottom[bi] + 4) / 8;
+          const pair =
+            (roles.left[li] + roles.right[ri] + roles.top[ti] + roles.bottom[bi] + 4) / 8;
           const out = (outer.left[li] + outer.right[ri] + outer.top[ti] + outer.bottom[bi]) / 4;
           const total = 0.4 * support + 0.2 * aspect + 0.05 * border + 0.2 * pair + 0.15 * out;
-          all.push({ quad, scores: { total, support, aspect, border, pair, outer: out, aspectRatio, borderStd } });
+          all.push({
+            quad,
+            scores: { total, support, aspect, border, pair, outer: out, aspectRatio, borderStd },
+          });
         }
       }
     }
@@ -447,7 +472,8 @@ export function detectCard(img: RGBAImage, opts: DetectOptions): DetectResult {
   const minDiff = guide.w * 0.015;
   for (const c of all) {
     if (alternatives.length >= 4) break;
-    if (alternatives.every((a) => Math.max(...a.quad.map((p, i) => dist(p, c.quad[i]))) > minDiff)) alternatives.push(c);
+    if (alternatives.every((a) => Math.max(...a.quad.map((p, i) => dist(p, c.quad[i]))) > minDiff))
+      alternatives.push(c);
   }
   const best = alternatives[0] ?? null;
   return { quad: best?.quad ?? null, scores: best?.scores ?? null, alternatives, debug };

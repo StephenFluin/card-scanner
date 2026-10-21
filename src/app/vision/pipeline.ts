@@ -1,5 +1,19 @@
-import { CardRegion, INFO_LINE, INFO_LINE_INPUT, NAME_CARD_WIDTH, NAME_REGION } from './card-layout';
-import { CARD_ASPECT, DetectResult, DetectScores, detectCard, EdgeLine, EdgePoint, Side } from './detect';
+import {
+  CardRegion,
+  INFO_LINE,
+  INFO_LINE_INPUT,
+  NAME_CARD_WIDTH,
+  NAME_REGION,
+} from './card-layout';
+import {
+  CARD_ASPECT,
+  DetectResult,
+  DetectScores,
+  detectCard,
+  EdgeLine,
+  EdgePoint,
+  Side,
+} from './detect';
 import { cardToImage, expandQuad, Mat3, Quad, rotateQuad180, warpCardRegion } from './homography';
 import type { LineModel } from './line-model';
 import { InfoRead, readInfoLine } from './reader';
@@ -57,7 +71,12 @@ export interface FrameAnalysis {
 
 export const DEFAULT_MIN_SCORE = 0.62;
 
-export function cropRegion(frame: RGBAImage, H: Mat3, region: CardRegion, cardWidthPx: number): RGBAImage {
+export function cropRegion(
+  frame: RGBAImage,
+  H: Mat3,
+  region: CardRegion,
+  cardWidthPx: number,
+): RGBAImage {
   const cardHeightPx = cardWidthPx / CARD_ASPECT;
   const w = Math.max(8, Math.round(region.w * cardWidthPx));
   const h = Math.max(8, Math.round(region.h * cardHeightPx));
@@ -103,7 +122,10 @@ export function analyzeFrame(frame: RGBAImage, opts: AnalyzeOptions): FrameAnaly
     h: opts.guide.h * scale,
   };
   const det: DetectResult = detectCard(small, { guide: guideSmall, debug: opts.debug });
-  const toFrame = (p: { x: number; y: number }) => ({ x: p.x / scale + roi.x, y: p.y / scale + roi.y });
+  const toFrame = (p: { x: number; y: number }) => ({
+    x: p.x / scale + roi.x,
+    y: p.y / scale + roi.y,
+  });
   let quad: Quad | null = det.quad ? (det.quad.map(toFrame) as unknown as Quad) : null;
   const minScore = opts.minScore ?? DEFAULT_MIN_SCORE;
   const alternatives = det.alternatives
@@ -122,7 +144,14 @@ export function analyzeFrame(frame: RGBAImage, opts: AnalyzeOptions): FrameAnaly
   }
   if (quad && opts.preview) {
     const H = cardToImage(opts.flip && !accepted ? rotateQuad180(quad) : quad);
-    preview = warpCardRegion(frame, H, { x: 0, y: 0, w: 1, h: 1 }, 252, Math.round(252 / CARD_ASPECT), 2);
+    preview = warpCardRegion(
+      frame,
+      H,
+      { x: 0, y: 0, w: 1, h: 1 },
+      252,
+      Math.round(252 / CARD_ASPECT),
+      2,
+    );
   }
   const t2 = performance.now();
 
@@ -145,8 +174,13 @@ export function analyzeFrame(frame: RGBAImage, opts: AnalyzeOptions): FrameAnaly
     debug = {
       roi,
       scale,
-      points: Object.fromEntries(sides.map((s) => [s, mapPts(det.debug!.points[s], s)])) as Record<Side, EdgePoint[]>,
-      candidates: Object.fromEntries(sides.map((s) => [s, det.debug!.candidates[s].map(mapLine)])) as Record<Side, EdgeLine[]>,
+      points: Object.fromEntries(sides.map((s) => [s, mapPts(det.debug!.points[s], s)])) as Record<
+        Side,
+        EdgePoint[]
+      >,
+      candidates: Object.fromEntries(
+        sides.map((s) => [s, det.debug!.candidates[s].map(mapLine)]),
+      ) as Record<Side, EdgeLine[]>,
     };
   }
 
@@ -253,6 +287,9 @@ export function readCard(
     if (info.parsed && info.confidence >= GOOD_READ) break;
   }
   const win = best!;
-  const crops: FrameCrops = { infoLine: win.infoCrop, name: cropRegion(frame, cardToImage(win.quad), NAME_REGION, NAME_CARD_WIDTH) };
+  const crops: FrameCrops = {
+    infoLine: win.infoCrop,
+    name: cropRegion(frame, cardToImage(win.quad), NAME_REGION, NAME_CARD_WIDTH),
+  };
   return { info: win.info, quad: win.quad, crops, variant: win.variant, tried };
 }
