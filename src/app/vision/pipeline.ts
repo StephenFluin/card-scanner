@@ -83,7 +83,11 @@ export function cropRegion(
   return warpCardRegion(frame, H, region, w, h, 2);
 }
 
-export type InfoLineSpec = { region: CardRegion; width: number; height: number };
+export interface InfoLineSpec {
+  region: CardRegion;
+  width: number;
+  height: number;
+}
 
 /** Rectifies the regions we read from a card with the given corners. */
 export function cropsForQuad(frame: RGBAImage, quad: Quad, infoLine?: InfoLineSpec): FrameCrops {

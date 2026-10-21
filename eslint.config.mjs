@@ -16,6 +16,16 @@ export default defineConfig([
     ],
     processor: angular.processInlineTemplates,
     rules: {
+      // A leading underscore marks a deliberately unused name, like a required callback parameter.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+        },
+      ],
       '@angular-eslint/directive-selector': [
         'error',
         { type: 'attribute', prefix: 'app', style: 'camelCase' },

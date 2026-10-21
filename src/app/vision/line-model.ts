@@ -65,7 +65,6 @@ function conv(x: Tensor, L: ConvSpec, weights: Float32Array): Tensor {
   const oh = x.h + 2 * L.ph - L.kh + 1;
   const ow = x.w + 2 * L.pw - L.kw + 1;
   const out = new Float32Array(L.outC * oh * ow);
-  const plane = oh * ow;
   // Four output channels per pass: each input value is loaded once for all four.
   const blocked = L.outC - (L.outC % 4);
   for (let o = 0; o < blocked; o += 4) convBlock4(x, L, weights, out, o, oh, ow);

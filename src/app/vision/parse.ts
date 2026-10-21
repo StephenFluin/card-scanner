@@ -44,7 +44,7 @@ export function parseName(words: readonly OcrWord[]): string | null {
   const line = usable
     .filter((w) => Math.abs(w.y - anchor.y) < tallest * 0.6 && w.height > tallest * 0.55)
     .sort((a, b) => a.x - b.x)
-    .map((w) => w.text.replace(/[^A-Za-zÀ-ÿ'’.\-]/g, ''))
+    .map((w) => w.text.replace(/[^A-Za-zÀ-ÿ'’.-]/g, ''))
     .filter((t) => t.length > 0 && !NAME_STOPWORDS.has(t.toUpperCase()));
   const name = line.join(' ').trim();
   return name.length >= 2 ? name : null;

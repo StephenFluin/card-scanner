@@ -80,9 +80,10 @@ function fillBackground(img: RGBAImage, kind: SynthParams['background'], r: Rand
   const phase = r() * 100;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let v = 0;
-      if (kind === 'wood') v = 18 * Math.sin((y + 40 * Math.sin(x * 0.01 + phase)) * 0.05);
-      else v = 10 * Math.sin(x * freq + phase) * Math.cos(y * freq * 0.7 + phase);
+      const v =
+        kind === 'wood'
+          ? 18 * Math.sin((y + 40 * Math.sin(x * 0.01 + phase)) * 0.05)
+          : 10 * Math.sin(x * freq + phase) * Math.cos(y * freq * 0.7 + phase);
       const grain = (r() - 0.5) * 8;
       const p = (y * w + x) * 4;
       data[p] = br + v + grain;
