@@ -26,6 +26,8 @@ export default defineConfig([
           destructuredArrayIgnorePattern: '^_',
         },
       ],
+      // Empty arrows are deliberate no-ops, like .catch(() => {}) on fire-and-forget calls.
+      '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
       '@angular-eslint/directive-selector': [
         'error',
         { type: 'attribute', prefix: 'app', style: 'camelCase' },
